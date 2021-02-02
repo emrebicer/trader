@@ -85,6 +85,7 @@ with open('binance_api_keys.json', 'r') as credentials_file:
     secret_key = keys['secret_key']
 
 
-#print(get_current_trade_ratio('BTCUSDT'))
-#print(get_account_information(api_key, secret_key))
-print(create_order(api_key, secret_key, 'BTCUSDT', "BUY", "LIMIT"))
+if __name__ == '__main__':
+    #print(get_current_trade_ratio('BTCUSDT'))
+    #print(get_account_information(api_key, secret_key))
+    print(create_order(api_key, secret_key, 'BTCUSDT', "BUY", "LIMIT"))
