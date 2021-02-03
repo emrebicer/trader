@@ -6,13 +6,7 @@ import hashlib
 
 BASE_ENDPOINT = 'https://api2.binance.com'
 LOG_FILE = 'binance_log.txt'
-
-
-def log(message):
-    date = datetime.datetime.now()
-    log = f'{date} - {message}'
-    with open(LOG_FILE, 'a') as log_file:
-        log_file.write(f'\n{log}')
+CONFIG_FILE = 'binance_trader_config.json'
 
 
 def get_current_trade_ratio(symbol) -> float:
@@ -26,23 +20,36 @@ def get_current_trade_ratio(symbol) -> float:
         raise Exception('Response does not include `lastPrice` value')
 
     return response_dict['lastPrice']
-    
 
 
-def create_order(api_key, secret_key, symbol, side, order_type):
+def create_limit_order(api_key, secret_key, symbol, side, quantity, price):
 
     price = get_current_trade_ratio(symbol)
     timestamp = get_server_timestamp()
-    quantity = 1
-    total_params = f'symbol={symbol}&side={side}&type={order_type}&timestamp={timestamp}&quantity={quantity}&price={price}&timeInForce=GTC'
+    total_params = f'symbol={symbol}&side={side}&type=LIMIT&timestamp={timestamp}&quantity={quantity}&price={price}&timeInForce=GTC'
     signature = create_signature(secret_key, total_params)
     headers = {'X-MBX-APIKEY': api_key}
 
-    response = requests.post(f'{BASE_ENDPOINT}/api/v3/order/test?{total_params}&signature={signature}', headers = headers)
+    response = requests.post(f'{BASE_ENDPOINT}/api/v3/order?{total_params}&signature={signature}', headers = headers)
 
     if response.status_code != 200:
         print(response.json())
-        raise Exception('Failed to post -> create_order')
+        raise Exception('Failed to post -> create_limit_order')
+        return
+    return response.json()
+
+def create_market_order(api_key, secret_key, symbol, side, quantity):
+    """ Buy instantly at the current price """
+    timestamp = get_server_timestamp()
+    total_params = f'symbol={symbol}&side={side}&type=MARKET&timestamp={timestamp}&quantity={quantity}'
+    signature = create_signature(secret_key, total_params)
+    headers = {'X-MBX-APIKEY': api_key}
+
+    response = requests.post(f'{BASE_ENDPOINT}/api/v3/order?{total_params}&signature={signature}', headers = headers)
+
+    if response.status_code != 200:
+        print(response.json())
+        raise Exception('Failed to post -> create_market_order')
         return
     return response.json()
     
@@ -57,11 +64,20 @@ def get_account_information(api_key, secret_key):
 
     if response.status_code != 200:
         print(response.json())
-        raise Exception('Failed to post -> create_order')
+        raise Exception('Failed to post -> get_account_information')
         return
     return response.json()    
 
 
+def get_free_balance_amount(api_key, secret_key, currency):
+    """ Returns available free balance in the account """
+    info = get_account_information(api_key, secret_key)
+    balances = info['balances']
+    for balance in balances:
+        if balance['asset'] == currency:
+            return float(balance['free'])
+            
+    raise Exception(f'{currency} does not exist in the balance info')
 
 def create_signature(secret_key, message):
     """ Create HMAC SHA256 signature """
@@ -75,26 +91,101 @@ def create_signature(secret_key, message):
 def get_server_timestamp():
     return int(datetime.datetime.now().timestamp() * 1000) - 2000
 
-
-api_key = ''
-secret_key = ''
-
-with open('binance_api_keys.json', 'r') as credentials_file:
-    keys = json.loads(credentials_file.read())
-    api_key = keys['api_key']
-    secret_key = keys['secret_key']
+def update_config_file(config):
+    with open(CONFIG_FILE, 'w') as config_file:
+        config_file.write(json.dumps(config))
 
 
-if __name__ == '__main__':    
-    #print(get_current_trade_ratio('BTCUSDT'))
-    #print(get_account_information(api_key, secret_key))
-    print(create_order(api_key, secret_key, 'BTCUSDT', "BUY", "LIMIT"))
+def log(message, print):
+    date = datetime.datetime.now()
+    log = f'{date} - {message}'
+    with open(LOG_FILE, 'a') as log_file:
+        log_file.write(f'\n{log}')
+    if print:
+        print(log)
 
-"""
-TO DO:
-    - Get the current free USDT and BTC depending on buy | sell
-    - Add a config file just like trader.py
-    - Make a hook logic; buy & sell for a constant profit, but don't buy & sell immediately
-        if making profit, set a flag to true and wait until a constant lose from the last max profit
-        value.
-"""
+if __name__ == '__main__':
+    api_key = ''
+    secret_key = ''
+
+    # Read the api key and api secret key
+    with open('binance_api_keys.json', 'r') as credentials_file:
+        keys = json.loads(credentials_file.read())
+        api_key = keys['api_key']
+        secret_key = keys['secret_key']
+
+    # Default config values
+    config = {
+        base_currency: 'BTC',
+        target_currency: 'USDT',
+        buy_on_next_trade: True,
+        last_operation_price: -1,
+        profit_percent: 3,
+        hook_percent: 1,
+        trade_wealth_percent: 98
+    }
+    config['last_operation_price'] = get_current_trade_ratio(config['base_currency'] + config['target_currency'])
+    
+    # If a config file exists on the fs, load it
+    if os.path.isfile(os.path.join(os.getcwd(), CONFIG_FILE)):
+        with open(CONFIG_FILE, 'r') as config_file:
+            config = json.loads(config_file.read())    
+
+    symbol = config['base_currency'] + config['target_currency']
+    hook = False
+    hook_price = -1
+
+    while True:
+        current_price = get_current_trade_ratio(symbol)
+        if hook and config['buy_on_next_trade']:
+            if current_price < hook_price:
+                hook_price = current_price
+            elif current_price - hook_price > (config['last_operation_price'] * config['hook_percent'] % 100):
+                # Create buy order
+                target_amount = get_free_balance_amount(api_key, secret_key, config['target_currency'])
+                # Calculate total amount that we can trade
+                target_amount = target_amount * config['trade_wealth_percent'] / 100
+                quantity = target_amount / current_price
+                result = create_market_order(api_key, secret_key, symbol, 'BUY', quantity)
+                print(result)
+                if result['status'] != 'FILLED':
+                    print('Response status was not filled, won\'t update config...')
+                    continue
+                hook = False
+                config['buy_on_next_trade'] = False
+                config['last_operation_price'] = current_price
+                update_config_file(config)
+                log(f'Bought {quantity} {config["base_currency"]} for {target_amount} {config["target_currency"]} ( {symbol} -> {current_price} )', True)
+
+        elif hook and not config['buy_on_next_trade']:
+            if current_price > hook_price:
+                hook_price = current_price
+            elif hook_price - current_price > (config['last_operation_price'] * config['hook_percent'] % 100):
+                # Create sell order
+                base_amount = get_free_balance_amount(api_key, secret_key, config['base_currency'])
+                # Calculate total amount that we can trade
+                base_amount = base_amount * config['trade_wealth_percent'] / 100
+                result = create_market_order(api_key, secret_key, symbol, 'SELL', base_amount)
+                print(result)
+                if result['status'] != 'FILLED':
+                    print('Response status was not filled, won\'t update config...')
+                    continue
+                hook = False
+                config['buy_on_next_trade'] = True
+                config['last_operation_price'] = current_price
+                update_config_file(config)
+                log(f'Sold {base_amount} {config["base_currency"]} for {base_amount * current_price} {config["target_currency"]} ( {symbol} -> {current_price} )', True)
+
+        elif config['buy_on_next_trade']:
+            # Check if the price has decreased by `profit_percent`
+            if current_price < config['last_operation_price'] - (config['last_operation_price'] * config['profit_percent'] % 100):
+                hook = True
+                hook_price = current_price
+        else:
+            # Check if the price has increased by `profit_percent`
+            if current_price > config['last_operation_price'] + (config['last_operation_price'] * config['profit_percent'] % 100):
+                hook = True
+                hook_price = current_price
+
+
+        time.sleep(5)
