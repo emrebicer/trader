@@ -144,7 +144,7 @@ def log(message, dump_to_console):
     date = datetime.datetime.now()
     log = f'{date} - {message}'
     with open(LOG_FILE, 'a') as log_file:
-        log_file.write(f'\n{log}')
+        log_file.write(f'{log}\n')
     if dump_to_console:
         print(message)
 
