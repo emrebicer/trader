@@ -5,6 +5,7 @@ import hmac
 import hashlib
 import os
 import time
+import decimal
 
 BASE_ENDPOINT = 'https://api2.binance.com'
 LOG_FILE = 'binance_log.txt'
@@ -25,9 +26,10 @@ def get_current_trade_ratio(symbol) -> float:
 
 
 def create_limit_order(api_key, secret_key, symbol, side, quantity, price):
+    quantity_str = update_quantity_according_lot_size_filter(symbol, quantity)
     price = get_current_trade_ratio(symbol)
     timestamp = get_server_timestamp()
-    total_params = f'symbol={symbol}&side={side}&type=LIMIT&timestamp={timestamp}&quantity={quantity}&price={price}&timeInForce=GTC'
+    total_params = f'symbol={symbol}&side={side}&type=LIMIT&timestamp={timestamp}&quantity={quantity_str}&price={price}&timeInForce=GTC'
     signature = create_signature(secret_key, total_params)
     headers = {'X-MBX-APIKEY': api_key}
 
@@ -42,8 +44,9 @@ def create_limit_order(api_key, secret_key, symbol, side, quantity, price):
 
 def create_market_order(api_key, secret_key, symbol, side, quantity):
     """ Buy instantly at the current price """
+    quantity_str = update_quantity_according_lot_size_filter(symbol, quantity)
     timestamp = get_server_timestamp()
-    total_params = f'symbol={symbol}&side={side}&type=MARKET&timestamp={timestamp}&quantity={quantity}'
+    total_params = f'symbol={symbol}&side={side}&type=MARKET&timestamp={timestamp}&quantity={quantity_str}'
     signature = create_signature(secret_key, total_params)
     headers = {'X-MBX-APIKEY': api_key}
 
@@ -81,6 +84,40 @@ def get_free_balance_amount(api_key, secret_key, currency):
             
     raise Exception(f'{currency} does not exist in the balance info')
 
+def get_precision_for_symbol(symbol) -> int:
+    """ Get the maximum allowed precision in decimal points for the given symbol """
+    response = requests.get(f'{BASE_ENDPOINT}/api/v3/exchangeInfo')
+    response_dict = response.json()
+    for info in response_dict['symbols']:
+        if info['symbol'] == symbol:
+            return int(info['quoteAssetPrecision'])
+
+    raise Exception(f'{symbol} does not exist in the exchange info') 
+
+def update_quantity_according_lot_size_filter(symbol, quantity) -> str:
+    """ 
+        Update the quantity, make sure it fits in the api restrictions.
+
+        restriction 1 -> quantity % step_size == 0
+        restriction 2 -> quantity must have maximum `precision` decimal points
+    """
+    response = requests.get(f'{BASE_ENDPOINT}/api/v3/exchangeInfo')
+    response_dict = response.json()
+    for info in response_dict['symbols']:
+        if info['symbol'] == symbol:
+            filters = info['filters']
+            for filter in filters:
+                if filter['filterType'] == 'LOT_SIZE':
+                    step_size = float(filter['stepSize'])
+                    if quantity % step_size == 0:
+                        return quantity
+                    else:
+                        quantity -= (quantity % step_size)
+                    precision = get_precision_for_symbol(symbol)
+                    quantity_str = str(value_to_decimal(quantity, precision))
+                    return quantity_str
+    
+    raise Exception(f'{symbol} does not exist in the exchange info or LOT_SIZE is not in filters') 
 
 def create_signature(secret_key, message):
     """ Create HMAC SHA256 signature """
@@ -90,6 +127,9 @@ def create_signature(secret_key, message):
     # Return generated HMAC SHA256 signature 
     return hmac.new(secret_key, message, hashlib.sha256).hexdigest()
 
+def value_to_decimal(value, decimal_places):
+    decimal.getcontext().rounding = decimal.ROUND_DOWN
+    return decimal.Decimal(str(float(value))).quantize(decimal.Decimal('1e-{}'.format(decimal_places)))
 
 def get_server_timestamp():
     return int(datetime.datetime.now().timestamp() * 1000) - 2000
@@ -153,7 +193,7 @@ if __name__ == '__main__':
                 result = create_market_order(api_key, secret_key, symbol, 'BUY', quantity)
                 print(result)
                 if result['status'] != 'FILLED':
-                    print('Response status was not filled, won\'t update config...')
+                    print('Response status was not FILLED, won\'t update config...')
                     continue
                 hook = False
                 config['buy_on_next_trade'] = False
@@ -172,7 +212,7 @@ if __name__ == '__main__':
                 result = create_market_order(api_key, secret_key, symbol, 'SELL', base_amount)
                 print(result)
                 if result['status'] != 'FILLED':
-                    print('Response status was not filled, won\'t update config...')
+                    print('Response status was not FILLED, won\'t update config...')
                     continue
                 hook = False
                 config['buy_on_next_trade'] = True
