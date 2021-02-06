@@ -58,8 +58,14 @@ def value_to_decimal(value, decimal_places):
     return decimal.Decimal(str(float(value))).quantize(decimal.Decimal('1e-{}'.format(decimal_places)))
 
 
-def get_server_timestamp() -> int:
-    return int(datetime.datetime.now().timestamp() * 1000) - 2000
+def get_server_timestamp() -> int:    
+    response = requests.get(f'{binance_constants.BASE_ENDPOINT}/api/v3/time')
+
+    if response.status_code != 200:
+        raise Exception('Failed while fetching server time')
+
+    return int(response.json()['serverTime'])
+
 
 
 def update_config_file(config):
