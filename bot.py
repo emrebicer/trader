@@ -24,13 +24,19 @@ if __name__ == '__main__':
         'last_operation_price': -1, # Previous trade price, if there is no trade, set to current price
         'profit_percent': 2, # How much should the increase or decrease should be for hooking
         'hook_percent': 0.5, # After granting profit, wait until `hook_percent` of loss to ensure to maximize the profit
-        'trade_wealth_percent': 99.8 # The percent of the balance to be traded
+        'trade_wealth_percent_buy': 99.8, # The percent of the balance to be traded while buying base currency
+        'trade_wealth_percent_sell': 100.0 # The percent of the balance to be traded while selling base currency
     }
     
     # If a config file exists on the fs, load it
     if os.path.isfile(os.path.join(os.getcwd(), binance_constants.CONFIG_FILE)):
         with open(binance_constants.CONFIG_FILE, 'r') as config_file:
-            config = json.loads(config_file.read())
+            saved_config = json.loads(config_file.read())
+            for key in config:
+                if key in saved_config:
+                    config[key] = saved_config[key]
+            # Update config on the file system
+            binance_helper.update_config_file(config)
     
     if config['last_operation_price'] == -1:
         config['last_operation_price'] = binance_trade.get_current_trade_ratio(config['base_currency'] + config['target_currency'])
@@ -49,7 +55,7 @@ if __name__ == '__main__':
                 # Create buy order
                 target_amount = binance_account.get_free_balance_amount(api_key, secret_key, config['target_currency'])
                 # Calculate total amount that we can trade
-                target_amount = target_amount * config['trade_wealth_percent'] / 100
+                target_amount = target_amount * config['trade_wealth_percent_buy'] / 100
                 quantity = target_amount / current_price
                 result = binance_trade.create_market_order(api_key, secret_key, symbol, 'BUY', quantity)
                 print(result)
@@ -69,7 +75,7 @@ if __name__ == '__main__':
                 # Create sell order
                 base_amount = binance_account.get_free_balance_amount(api_key, secret_key, config['base_currency'])
                 # Calculate total amount that we can trade
-                base_amount = base_amount * config['trade_wealth_percent'] / 100
+                base_amount = base_amount * config['trade_wealth_percent_sell'] / 100
                 result = binance_trade.create_market_order(api_key, secret_key, symbol, 'SELL', base_amount)
                 print(result)
                 if result['status'] != 'FILLED':
