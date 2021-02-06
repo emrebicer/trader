@@ -168,12 +168,15 @@ if __name__ == '__main__':
         'hook_percent': 0.5, # After granting profit, wait until `hook_percent` of loss to ensure to maximize the profit
         'trade_wealth_percent': 99.8 # The percent of the balance to be traded
     }
-    config['last_operation_price'] = get_current_trade_ratio(config['base_currency'] + config['target_currency'])
     
     # If a config file exists on the fs, load it
     if os.path.isfile(os.path.join(os.getcwd(), CONFIG_FILE)):
         with open(CONFIG_FILE, 'r') as config_file:
-            config = json.loads(config_file.read())    
+            config = json.loads(config_file.read())
+    
+    if config['last_operation_price'] == -1:
+        config['last_operation_price'] = get_current_trade_ratio(config['base_currency'] + config['target_currency'])
+
 
     symbol = config['base_currency'] + config['target_currency']
     hook = False
