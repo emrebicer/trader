@@ -25,7 +25,9 @@ if __name__ == '__main__':
         'profit_percent': 2, # How much should the increase or decrease should be for hooking
         'hook_percent': 0.5, # After granting profit, wait until `hook_percent` of loss to ensure to maximize the profit
         'trade_wealth_percent_buy': 99.8, # The percent of the balance to be traded while buying base currency
-        'trade_wealth_percent_sell': 100.0 # The percent of the balance to be traded while selling base currency
+        'trade_wealth_percent_sell': 100.0, # The percent of the balance to be traded while selling base currency
+        'loss_prevention': True, # Prevent huge loss, sell early (will still lose but avoids a huge loss)
+        'loss_prevention_percent': 8.0
     }
     
     # If a config file exists on the fs, load it
@@ -99,6 +101,12 @@ if __name__ == '__main__':
                 hook = True
                 hook_price = current_price
                 binance_helper.log(f'Hook price -> {current_price}, will sell after hook control', True)
+            elif config['loss_prevention']:
+                # Check for the current loss, if it is over `loss_prevention_percent` set the hook for selling
+                if current_price < config['last_operation_price'] - (config['last_operation_price'] * config['loss_prevention_percent']):
+                    hook = True
+                    hook_price = current_price
+                    binance_helper.log(f'Loss prevention !!! Hook price -> {current_price}, will sell after hook control', True)
 
 
         difference_in_percent = 100 * (current_price - config['last_operation_price']) / config['last_operation_price']
