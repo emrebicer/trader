@@ -70,7 +70,7 @@ def get_server_timestamp() -> int:
 
 def update_config_file(config):
     with open(binance_constants.CONFIG_FILE, 'w') as config_file:
-        config_file.write(json.dumps(config))
+        config_file.write(json.dumps(config, indent=4))
 
 
 def log(message, dump_to_console):

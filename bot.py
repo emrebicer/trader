@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import time
 import binance_constants
 import binance_helper
@@ -7,6 +8,11 @@ import binance_trade
 import binance_account
 
 if __name__ == '__main__':
+
+    print_out = True
+    if '--no-print' in sys.argv:
+        print_out = False
+
     api_key = ''
     secret_key = ''
 
@@ -48,6 +54,9 @@ if __name__ == '__main__':
     hook = False
     hook_price = -1
 
+    if print_out:
+        print(f'Starting the bot with this config:\n\n{json.dumps(config, indent=4)}\n')
+
     while True:
         current_price = binance_trade.get_current_trade_ratio(symbol)
         if hook and config['buy_on_next_trade']:
@@ -68,7 +77,7 @@ if __name__ == '__main__':
                 config['buy_on_next_trade'] = False
                 config['last_operation_price'] = current_price
                 binance_helper.update_config_file(config)
-                binance_helper.log(f'Bought {quantity} {config["base_currency"]} for {target_amount} {config["target_currency"]} ( {symbol} -> {current_price} )', True)
+                binance_helper.log(f'Bought {quantity} {config["base_currency"]} for {target_amount} {config["target_currency"]} ( {symbol} -> {current_price} )', print_out)
 
         elif hook and not config['buy_on_next_trade']:
             if current_price > hook_price:
@@ -87,29 +96,29 @@ if __name__ == '__main__':
                 config['buy_on_next_trade'] = True
                 config['last_operation_price'] = current_price
                 binance_helper.update_config_file(config)
-                binance_helper.log(f'Sold {base_amount} {config["base_currency"]} for {base_amount * current_price} {config["target_currency"]} ( {symbol} -> {current_price} )', True)
+                binance_helper.log(f'Sold {base_amount} {config["base_currency"]} for {base_amount * current_price} {config["target_currency"]} ( {symbol} -> {current_price} )', print_out)
 
         elif config['buy_on_next_trade']:
             # Check if the price has decreased by `profit_percent`
             if current_price < config['last_operation_price'] - (config['last_operation_price'] * config['profit_percent'] / 100):
                 hook = True
                 hook_price = current_price
-                binance_helper.log(f'Hook price -> {current_price}, will buy after hook control', True)
+                binance_helper.log(f'Hook price -> {current_price}, will buy after hook control', print_out)
         else:
             # Check if the price has increased by `profit_percent`
             if current_price > config['last_operation_price'] + (config['last_operation_price'] * config['profit_percent'] / 100):
                 hook = True
                 hook_price = current_price
-                binance_helper.log(f'Hook price -> {current_price}, will sell after hook control', True)
+                binance_helper.log(f'Hook price -> {current_price}, will sell after hook control', print_out)
             elif config['loss_prevention']:
                 # Check for the current loss, if it is over `loss_prevention_percent` set the hook for selling
                 if current_price < config['last_operation_price'] - (config['last_operation_price'] * config['loss_prevention_percent']):
                     hook = True
                     hook_price = current_price
-                    binance_helper.log(f'Loss prevention !!! Hook price -> {current_price}, will sell after hook control', True)
+                    binance_helper.log(f'Loss prevention !!! Hook price -> {current_price}, will sell after hook control', print_out)
 
-
-        difference_in_percent = 100 * (current_price - config['last_operation_price']) / config['last_operation_price']
-        print(f'cp -> {current_price} {config["target_currency"]}\tlop -> {config["last_operation_price"]} {config["target_currency"]}\tdif -> {int(current_price - config["last_operation_price"])} {config["target_currency"]} ({format(difference_in_percent, ".3f")}%)')
+        if print_out:
+            difference_in_percent = 100 * (current_price - config['last_operation_price']) / config['last_operation_price']
+            print(f'cp -> {current_price} {config["target_currency"]}\tlop -> {config["last_operation_price"]} {config["target_currency"]}\tdif -> {int(current_price - config["last_operation_price"])} {config["target_currency"]} ({format(difference_in_percent, ".3f")}%)')
 
         time.sleep(5)
