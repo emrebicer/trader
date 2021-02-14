@@ -81,3 +81,22 @@ def log(message, dump_to_console):
     if dump_to_console:
         print(message)
 
+def validate_config_file(config):
+
+    expected_config_keys = {
+        'base_currency': str,
+        'target_currency': str,
+        'buy_on_next_trade': bool,
+        'last_operation_price': float,
+        'profit_percent': float,
+        'hook_percent': float,
+        'trade_wealth_percent_buy': float,
+        'trade_wealth_percent_sell': float,
+        'loss_prevention': bool,
+        'loss_prevention_percent': float
+    }
+
+    for key in expected_config_keys:
+        if type(config[key]) is not expected_config_keys[key]:
+            raise Exception(f'Configuration error: Type of "{key}" must be '
+            f'{expected_config_keys[key]}, but it is a {type(config[key])}')

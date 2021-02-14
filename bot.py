@@ -28,7 +28,7 @@ if __name__ == '__main__':
         'target_currency': 'USDT', # Second currency in the trade
         'buy_on_next_trade': True, # Will buy at the next trade
         'last_operation_price': -1, # Previous trade price, if there is no trade, set to current price
-        'profit_percent': 2, # How much should the increase or decrease should be for hooking
+        'profit_percent': 2.0, # How much should the increase or decrease should be for hooking
         'hook_percent': 0.5, # After granting profit, wait until `hook_percent` of loss to ensure to maximize the profit
         'trade_wealth_percent_buy': 99.8, # The percent of the balance to be traded while buying base currency
         'trade_wealth_percent_sell': 100.0, # The percent of the balance to be traded while selling base currency
@@ -53,6 +53,9 @@ if __name__ == '__main__':
     symbol = config['base_currency'] + config['target_currency']
     hook = False
     hook_price = -1
+
+    # Validate the config file
+    binance_helper.validate_config_file(config)
 
     if print_out:
         print(f'Starting the bot with this config:\n\n{json.dumps(config, indent=4)}\n')
