@@ -57,6 +57,23 @@ def value_to_decimal(value, decimal_places):
     decimal.getcontext().rounding = decimal.ROUND_DOWN
     return decimal.Decimal(str(float(value))).quantize(decimal.Decimal('1e-{}'.format(decimal_places)))
 
+def get_24h_statistics(symbol):
+
+    url = f'{binance_constants.BASE_ENDPOINT}/api/v3/ticker/24hr?symbol={symbol}'
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        raise Exception(f'Failed while fetching 24hr statistics for {symbol}')
+    
+    return response.json()
+
+def get_24hr_price_change_percent(symbol) -> float:
+    statistics = get_24h_statistics(symbol)
+    if 'priceChangePercent' in statistics:
+        return float(statistics['priceChangePercent'])
+
+    raise Exception(f'priceChangePercent was not found in the 24hr statistics for {symbol}')
+
 
 def get_server_timestamp() -> int:    
     response = requests.get(f'{binance_constants.BASE_ENDPOINT}/api/v3/time')
@@ -93,7 +110,9 @@ def validate_config_file(config):
         'trade_wealth_percent_buy': float,
         'trade_wealth_percent_sell': float,
         'loss_prevention': bool,
-        'loss_prevention_percent': float
+        'loss_prevention_percent': float,
+        'avoid_buy_on_daily_increase': bool,
+        'avoid_buy_on_daily_increase_percent': float
     }
 
     for key in expected_config_keys:

@@ -33,7 +33,9 @@ if __name__ == '__main__':
         'trade_wealth_percent_buy': 99.8, # The percent of the balance to be traded while buying base currency
         'trade_wealth_percent_sell': 100.0, # The percent of the balance to be traded while selling base currency
         'loss_prevention': True, # Prevent huge loss, sell early (will still lose but avoids a huge loss)
-        'loss_prevention_percent': 8.0
+        'loss_prevention_percent': 8.0,
+        'avoid_buy_on_daily_increase': True,
+        'avoid_buy_on_daily_increase_percent': 5.0
     }
     
     # If a config file exists on the fs, load it
@@ -104,6 +106,9 @@ if __name__ == '__main__':
         elif config['buy_on_next_trade']:
             # Check if the price has decreased by `profit_percent`
             if current_price < config['last_operation_price'] - (config['last_operation_price'] * config['profit_percent'] / 100):
+                if config['avoid_buy_on_daily_increase'] and binance_helper.get_24hr_price_change_percent(symbol) > config['avoid_buy_on_daily_increase_percent']:
+                    print(f'Won\'t buy beacuse daily increase percent is {binance_helper.get_24hr_price_change_percent(symbol)}%')
+                    continue
                 hook = True
                 hook_price = current_price
                 binance_helper.log(f'Hook price -> {current_price}, will buy after hook control', print_out)
