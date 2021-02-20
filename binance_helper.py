@@ -107,6 +107,8 @@ def validate_config_file(config):
         'last_operation_price': float,
         'profit_percent': float,
         'hook_percent': float,
+        'trade_with_percent_buy': bool,
+        'trade_amount_buy': float,
         'trade_wealth_percent_buy': float,
         'trade_wealth_percent_sell': float,
         'loss_prevention': bool,

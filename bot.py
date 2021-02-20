@@ -25,16 +25,18 @@ if __name__ == '__main__':
     # Default config values
     config = {
         'base_currency': 'BTC', # First currency in the trade
-        'target_currency': 'USDT', # Second currency in the trade
-        'buy_on_next_trade': True, # Will buy at the next trade
-        'last_operation_price': -1, # Previous trade price, if there is no trade, set to current price
+        'target_currency': 'USDT', # Second currency in the trade, want to maximize this asset
+        'buy_on_next_trade': True, # Buy `base_currency` at the next trade
+        'last_operation_price': -1, # Previous trade price, if there is no trade (-1), set to current price
         'profit_percent': 2.0, # How much should the increase or decrease should be for hooking
         'hook_percent': 0.5, # After granting profit, wait until `hook_percent` of loss to ensure to maximize the profit
-        'trade_wealth_percent_buy': 99.8, # The percent of the balance to be traded while buying base currency
-        'trade_wealth_percent_sell': 100.0, # The percent of the balance to be traded while selling base currency
+        'trade_with_percent_buy': True, # Use percent or constant amount of `target_currency` when buying `base_currency`
+        'trade_amount_buy': 30.0, # Constant amount of `target_currency` to use while buying `base_currency`
+        'trade_wealth_percent_buy': 99.8, # The percent of the account balance to be traded while buying `base_currency`
+        'trade_wealth_percent_sell': 100.0, # The percent of the account balance to be traded while selling `base_currency`
         'loss_prevention': True, # Prevent huge loss, sell early (will still lose but avoids a huge loss)
         'loss_prevention_percent': 8.0,
-        'avoid_buy_on_daily_increase': True,
+        'avoid_buy_on_daily_increase': True, # Avoid buying `base_currency` if it is pumped daily
         'avoid_buy_on_daily_increase_percent': 5.0
     }
     
@@ -69,9 +71,11 @@ if __name__ == '__main__':
                 hook_price = current_price
             elif current_price - hook_price > (config['last_operation_price'] * config['hook_percent'] / 100):
                 # Create buy order
-                target_amount = binance_account.get_free_balance_amount(api_key, secret_key, config['target_currency'])
-                # Calculate total amount that we can trade
-                target_amount = target_amount * config['trade_wealth_percent_buy'] / 100
+                if config['trade_with_percent_buy']:
+                    target_amount = binance_account.get_free_balance_amount(api_key, secret_key, config['target_currency'])
+                    target_amount = target_amount * config['trade_wealth_percent_buy'] / 100
+                else:
+                    target_amount = config['trade_amount_buy']
                 quantity = target_amount / current_price
                 result = binance_trade.create_market_order(api_key, secret_key, symbol, 'BUY', quantity)
                 print(result)
