@@ -9,6 +9,25 @@ import binance_account
 
 # Keep track of hook and hook price for several symbols in this dictionary
 trader_local_data = {}
+# Keep track of the individual config files
+master_config_files = []
+
+
+def update_and_save_config_file(config_instance):
+    instance_symbol = config_instance['base_currency'] + config_instance['target_currency']
+
+    for current_config_index in range(len(master_config_files)):
+        
+        current_config = master_config_files[current_config_index]
+        current_symbol = current_config['base_currency'] + current_config['target_currency']
+        
+        if instance_symbol == current_symbol:
+            master_config_files[current_config_index] = config_instance
+            binance_helper.write_config_file(master_config_files)
+            return
+
+    raise Exception(f'The symbol {instance_symbol} was not found in the {master_config_files}')
+
 
 def perform_bot_operations(config, api_key, secret_key, print_out):
     
@@ -34,7 +53,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             trader_local_data[symbol]['hook'] = False
             config['buy_on_next_trade'] = False
             config['last_operation_price'] = current_price
-            binance_helper.write_config_file(config)
+            update_and_save_config_file(config)
             binance_helper.log(f'Bought {quantity} {config["base_currency"]} for {target_amount} {config["target_currency"]} ( {symbol} -> {current_price} )', print_out)
 
     elif trader_local_data[symbol]['hook'] and not config['buy_on_next_trade']:
@@ -53,7 +72,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             trader_local_data[symbol]['hook'] = False
             config['buy_on_next_trade'] = True
             config['last_operation_price'] = current_price
-            binance_helper.write_config_file(config)
+            update_and_save_config_file(config)
             binance_helper.log(f'Sold {base_amount} {config["base_currency"]} for {base_amount * current_price} {config["target_currency"]} ( {symbol} -> {current_price} )', print_out)
 
     elif config['buy_on_next_trade']:
@@ -118,9 +137,14 @@ if __name__ == '__main__':
         'avoid_buy_on_daily_increase_percent': 5.0
     }
     
+    # Fetch config files from fs
     final_config_files = binance_helper.load_config_file(default_config)
-
+    
+    # Append the individual config files to global var `master_config_files`
     for current_config in final_config_files:
+        master_config_files.append(current_config)
+
+    for current_config in master_config_files:
         symbol = current_config['base_currency'] + current_config['target_currency']
 
         if current_config['last_operation_price'] == -1:
@@ -129,16 +153,16 @@ if __name__ == '__main__':
         trader_local_data[symbol] = {'hook': False, 'hook_price': -1}
     
     # Validate the config file
-    binance_helper.validate_config_file(final_config_files)
+    binance_helper.validate_config_file(master_config_files)
     
     # Update config on the file system
-    binance_helper.write_config_file(final_config_files)
+    binance_helper.write_config_file(master_config_files)
     
     if print_out:
-        print(f'Starting the bot with this config:\n\n{json.dumps(final_config_files, indent=4)}\n')
+        print(f'Starting the bot with this config:\n\n{json.dumps(master_config_files, indent=4)}\n')
     
     while True:
-        for current_config in final_config_files:
+        for current_config in master_config_files:
             perform_bot_operations(current_config, api_key, secret_key, print_out) 
         if print_out:
             print('---------------------------------------------------------------------------------')
