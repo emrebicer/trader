@@ -1,3 +1,4 @@
+import os
 import requests
 import hmac
 import decimal
@@ -85,10 +86,42 @@ def get_server_timestamp() -> int:
 
 
 
-def update_config_file(config):
+def write_config_file(config):
     with open(binance_constants.CONFIG_FILE, 'w') as config_file:
         config_file.write(json.dumps(config, indent=4))
 
+def fill_empty_fields_with_default_config(current_config, default_config) -> dict:
+    if current_config['base_currency'] and current_config['target_currency']:
+        symbol = current_config['base_currency'] + current_config['target_currency']
+    else:
+        symbol = default_config['base_currency'] + default_config['target_currency']
+    
+    for key in default_config:
+        if key not in current_config:
+            current_config[key] = default_config[key]
+            print(f'Updated `{key}` key in {symbol} config')
+    return current_config
+
+def load_config_file(default_config) -> list:
+    final_config_files = []
+
+    # If a config file exists on the fs, load it
+    if os.path.isfile(os.path.join(os.getcwd(), binance_constants.CONFIG_FILE)):
+        with open(binance_constants.CONFIG_FILE, 'r') as config_file:
+            saved_config = json.loads(config_file.read())
+            if type(saved_config) == dict:
+                temp = saved_config
+                saved_config = []
+                saved_config.append(temp)
+            
+            for current_config in saved_config:
+                final_config_files.append(fill_empty_fields_with_default_config(current_config, default_config))
+            
+    else:
+        # Just start the bot with the default config file
+        final_config_files.append(default_config)
+
+    return final_config_files
 
 def log(message, dump_to_console):
     date = datetime.datetime.now()
@@ -99,7 +132,10 @@ def log(message, dump_to_console):
         print(message)
 
 def validate_config_file(config):
-
+    
+    if type(config) != list:
+        raise Exception(f'Configuration error: the config file must be a list!')
+    
     expected_config_keys = {
         'base_currency': str,
         'target_currency': str,
@@ -116,8 +152,9 @@ def validate_config_file(config):
         'avoid_buy_on_daily_increase': bool,
         'avoid_buy_on_daily_increase_percent': float
     }
-
-    for key in expected_config_keys:
-        if type(config[key]) is not expected_config_keys[key]:
-            raise Exception(f'Configuration error: Type of "{key}" must be '
-            f'{expected_config_keys[key]}, but it is a {type(config[key])}')
+    
+    for current_config in config:
+        for key in expected_config_keys:
+            if type(current_config[key]) is not expected_config_keys[key]:
+                raise Exception(f'Configuration error: Type of "{key}" must be '
+                f'{expected_config_keys[key]}, but it is a {type(current_config[key])}')

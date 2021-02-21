@@ -34,7 +34,7 @@ def perform_current_operations(config, api_key, secret_key, print_out):
             trader_local_data[symbol]['hook'] = False
             config['buy_on_next_trade'] = False
             config['last_operation_price'] = current_price
-            binance_helper.update_config_file(config)
+            binance_helper.write_config_file(config)
             binance_helper.log(f'Bought {quantity} {config["base_currency"]} for {target_amount} {config["target_currency"]} ( {symbol} -> {current_price} )', print_out)
 
     elif trader_local_data[symbol]['hook'] and not config['buy_on_next_trade']:
@@ -53,7 +53,7 @@ def perform_current_operations(config, api_key, secret_key, print_out):
             trader_local_data[symbol]['hook'] = False
             config['buy_on_next_trade'] = True
             config['last_operation_price'] = current_price
-            binance_helper.update_config_file(config)
+            binance_helper.write_config_file(config)
             binance_helper.log(f'Sold {base_amount} {config["base_currency"]} for {base_amount * current_price} {config["target_currency"]} ( {symbol} -> {current_price} )', print_out)
 
     elif config['buy_on_next_trade']:
@@ -80,7 +80,7 @@ def perform_current_operations(config, api_key, secret_key, print_out):
 
     if print_out:
         difference_in_percent = 100 * (current_price - config['last_operation_price']) / config['last_operation_price']
-        print(f'cp -> {current_price} {config["target_currency"]}\tlop -> {config["last_operation_price"]} {config["target_currency"]}\tdif -> {int(current_price - config["last_operation_price"])} {config["target_currency"]} ({format(difference_in_percent, ".3f")}%)')
+        print(f'{symbol} cp -> {current_price} {config["target_currency"]}\tlop -> {config["last_operation_price"]} {config["target_currency"]}\tdif -> {int(current_price - config["last_operation_price"])} {config["target_currency"]} ({format(difference_in_percent, ".3f")}%)')
 
 
 
@@ -101,11 +101,11 @@ if __name__ == '__main__':
         secret_key = keys['secret_key']
 
     # Default config values
-    config = {
+    default_config = {
         'base_currency': 'BTC', # First currency in the trade
         'target_currency': 'USDT', # Second currency in the trade, want to maximize this asset
         'buy_on_next_trade': True, # Buy `base_currency` at the next trade
-        'last_operation_price': -1, # Previous trade price, if there is no trade (-1), set to current price
+        'last_operation_price': -1.0, # Previous trade price, if there is no trade (-1), set to current price
         'profit_percent': 2.0, # How much should the increase or decrease should be for hooking
         'hook_percent': 0.5, # After granting profit, wait until `hook_percent` of loss to ensure to maximize the profit
         'trade_with_percent_buy': True, # Use percent or constant amount of `target_currency` when buying `base_currency`
@@ -118,30 +118,30 @@ if __name__ == '__main__':
         'avoid_buy_on_daily_increase_percent': 5.0
     }
     
-    # If a config file exists on the fs, load it
-    if os.path.isfile(os.path.join(os.getcwd(), binance_constants.CONFIG_FILE)):
-        with open(binance_constants.CONFIG_FILE, 'r') as config_file:
-            saved_config = json.loads(config_file.read())
-            for key in config:
-                if key in saved_config:
-                    config[key] = saved_config[key]
-            # Update config on the file system
-            binance_helper.update_config_file(config)
-    
-    if config['last_operation_price'] == -1:
-        config['last_operation_price'] = binance_trade.get_current_trade_ratio(config['base_currency'] + config['target_currency'])
-    
-    symbol = config['base_currency'] + config['target_currency'] 
-    
-    trader_local_data[symbol] = {'hook': False, 'hook_price': -1}
+    final_config_files = binance_helper.load_config_file(default_config)
 
+    for current_config in final_config_files:
+        symbol = current_config['base_currency'] + current_config['target_currency']
+
+        if current_config['last_operation_price'] == -1:
+            current_config['last_operation_price'] = binance_trade.get_current_trade_ratio(symbol)
+
+        trader_local_data[symbol] = {'hook': False, 'hook_price': -1}
+    
     # Validate the config file
-    binance_helper.validate_config_file(config)
+    binance_helper.validate_config_file(final_config_files)
+    
+    # Update config on the file system
+    binance_helper.write_config_file(final_config_files)
+    
     if print_out:
-        print(f'Starting the bot with this config:\n\n{json.dumps(config, indent=4)}\n')
+        print(f'Starting the bot with this config:\n\n{json.dumps(final_config_files, indent=4)}\n')
+    
     while True:
-        
-        perform_current_operations(config, api_key, secret_key, print_out) 
+        for current_config in final_config_files:
+            perform_current_operations(current_config, api_key, secret_key, print_out) 
+        if print_out:
+            print('---------------------------------------------------------------------------------')
         time.sleep(5)
 
 
