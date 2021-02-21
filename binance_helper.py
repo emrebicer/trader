@@ -136,6 +136,14 @@ def validate_config_file(config):
     if type(config) != list:
         raise Exception(f'Configuration error: the config file must be a list!')
     
+    # Make sure each config has a unique symbol
+    prev_symbols = []
+    for current_config in config:
+        current_symbol = current_config['base_currency'] + current_config['target_currency']
+        if current_symbol in prev_symbols:
+            raise Exception(f'{current_symbol} config duplicate')
+        prev_symbols.append(current_symbol)
+
     expected_config_keys = {
         'base_currency': str,
         'target_currency': str,

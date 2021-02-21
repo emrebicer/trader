@@ -10,7 +10,7 @@ import binance_account
 # Keep track of hook and hook price for several symbols in this dictionary
 trader_local_data = {}
 
-def perform_current_operations(config, api_key, secret_key, print_out):
+def perform_bot_operations(config, api_key, secret_key, print_out):
     
     symbol = config['base_currency'] + config['target_currency'] 
     current_price = binance_trade.get_current_trade_ratio(symbol)
@@ -139,7 +139,7 @@ if __name__ == '__main__':
     
     while True:
         for current_config in final_config_files:
-            perform_current_operations(current_config, api_key, secret_key, print_out) 
+            perform_bot_operations(current_config, api_key, secret_key, print_out) 
         if print_out:
             print('---------------------------------------------------------------------------------')
         time.sleep(5)
