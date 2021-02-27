@@ -160,6 +160,12 @@ def validate_config_file(config):
         'avoid_buy_on_daily_increase': bool,
         'avoid_buy_on_daily_increase_percent': float
     }
+
+    # Check if an unknown key exists in the config file
+    for current_config in config:
+        for key in current_config:
+            if key not in expected_config_keys:
+                raise Exception(f'{key} was not expected in the config')
     
     for current_config in config:
         for key in expected_config_keys:
