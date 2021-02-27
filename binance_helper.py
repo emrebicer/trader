@@ -158,7 +158,8 @@ def validate_config_file(config):
         'loss_prevention': bool,
         'loss_prevention_percent': float,
         'avoid_buy_on_daily_increase': bool,
-        'avoid_buy_on_daily_increase_percent': float
+        'avoid_buy_on_daily_increase_percent': float,
+        'last_trade_time_stamp': float
     }
 
     # Check if an unknown key exists in the config file

@@ -1,4 +1,5 @@
 import json
+import time
 import os
 import sys
 import time
@@ -50,6 +51,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             if result['status'] != 'FILLED':
                 print('Response status was not FILLED, won\'t update config...')
                 return
+            config['last_trade_time_stamp'] = get_time_stamp()
             trader_local_data[symbol]['hook'] = False
             config['buy_on_next_trade'] = False
             config['last_operation_price'] = current_price
@@ -69,6 +71,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             if result['status'] != 'FILLED':
                 print('Response status was not FILLED, won\'t update config...')
                 return
+            config['last_trade_time_stamp'] = get_time_stamp()
             trader_local_data[symbol]['hook'] = False
             config['buy_on_next_trade'] = True
             config['last_operation_price'] = current_price
@@ -102,6 +105,8 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
         print(f'{symbol} cp -> {current_price} {config["target_currency"]}\tlop -> {config["last_operation_price"]} {config["target_currency"]}\tdif -> {int(current_price - config["last_operation_price"])} {config["target_currency"]} ({format(difference_in_percent, ".3f")}%)')
 
 
+def get_time_stamp():
+    return time.time()
 
 
 if __name__ == '__main__':
@@ -128,13 +133,14 @@ if __name__ == '__main__':
         'profit_percent': 2.0, # How much should the increase or decrease should be for hooking
         'hook_percent': 0.5, # After granting profit, wait until `hook_percent` of loss to ensure to maximize the profit
         'trade_with_percent_buy': True, # Use percent or constant amount of `target_currency` when buying `base_currency`
-        'trade_amount_buy': 30.0, # Constant amount of `target_currency` to use while buying `base_currency`
+        'trade_amount_buy': 15.0, # Constant amount of `target_currency` to use while buying `base_currency`
         'trade_wealth_percent_buy': 99.8, # The percent of the account balance to be traded while buying `base_currency`
         'trade_wealth_percent_sell': 100.0, # The percent of the account balance to be traded while selling `base_currency`
         'loss_prevention': False, # Prevent huge loss, sell early (will still lose but avoids a huge loss)
         'loss_prevention_percent': 8.0,
         'avoid_buy_on_daily_increase': True, # Avoid buying `base_currency` if it is pumped daily
-        'avoid_buy_on_daily_increase_percent': 5.0
+        'avoid_buy_on_daily_increase_percent': 5.0,
+        'last_trade_time_stamp': -1.0
     }
     
     # Fetch config files from fs
@@ -149,6 +155,9 @@ if __name__ == '__main__':
 
         if current_config['last_operation_price'] == -1:
             current_config['last_operation_price'] = binance_trade.get_current_trade_ratio(symbol)
+        
+        if current_config['last_trade_time_stamp'] == -1:
+            current_config['last_trade_time_stamp'] = get_time_stamp()
 
         trader_local_data[symbol] = {'hook': False, 'hook_price': -1}
     
