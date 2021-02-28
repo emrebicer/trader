@@ -86,19 +86,19 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                 return
             trader_local_data[symbol]['hook'] = True
             trader_local_data[symbol]['hook_price'] = current_price
-            binance_helper.log(f'Hook price -> {current_price}, will buy after hook control', print_out)
+            binance_helper.log(f'Hook price -> {current_price}, will buy after hook control ( {symbol} )', print_out)
     else:
         # Check if the price has increased by `profit_percent`
         if current_price > config['last_operation_price'] + (config['last_operation_price'] * config['profit_percent'] / 100):
             trader_local_data[symbol]['hook'] = True
             trader_local_data[symbol]['hook_price'] = current_price
-            binance_helper.log(f'Hook price -> {current_price}, will sell after hook control', print_out)
+            binance_helper.log(f'Hook price -> {current_price}, will sell after hook control ( {symbol} )', print_out)
         elif config['loss_prevention']:
             # Check for the current loss, if it is over `loss_prevention_percent` set the hook for selling
             if current_price < config['last_operation_price'] - (config['last_operation_price'] * config['loss_prevention_percent']):
                 trader_local_data[symbol]['hook'] = True
                 trader_local_data[symbol]['hook_price'] = current_price
-                binance_helper.log(f'Loss prevention !!! Hook price -> {current_price}, will sell after hook control', print_out)
+                binance_helper.log(f'Loss prevention !!! Hook price -> {current_price}, will sell after hook control ( {symbol} )', print_out)
 
 
     if config['buy_on_next_trade'] and config['update_lop_on_idle'] and not trader_local_data[symbol]['hook']:
