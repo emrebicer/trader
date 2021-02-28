@@ -69,8 +69,8 @@ def get_statistics(symbol, interval, limit = 1000):
     decrease_average = decrease_average / closed_lower_count
 
     print('\n\n\n')
-    print(f'Closed higher: {closed_higher_count} --- ({closed_higher_count * 100 / limit}%) {POSITIVE_EMOJI}')
-    print(f'Closed lower : {closed_lower_count} --- ({closed_lower_count * 100 / limit}%) {NEGATIVE_EMOJI}')
+    print(f'Closed higher: {closed_higher_count} --- ({closed_higher_count * 100.0 / (len(klines_data) - 1)}%) {POSITIVE_EMOJI}')
+    print(f'Closed lower : {closed_lower_count} --- ({closed_lower_count * 100.0 / (len(klines_data) - 1)}%) {NEGATIVE_EMOJI}')
     print(f'Increase average: {increase_average}')
     print(f'Decrease average: {decrease_average}')
     print(f'Max increase: {max_increase}')
