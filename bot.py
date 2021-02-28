@@ -100,6 +100,19 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                 trader_local_data[symbol]['hook_price'] = current_price
                 binance_helper.log(f'Loss prevention !!! Hook price -> {current_price}, will sell after hook control', print_out)
 
+
+    if config['buy_on_next_trade'] and config['update_lop_on_idle'] and not trader_local_data[symbol]['hook']:
+        # Calculate total idle seconds
+        idle_seconds = get_time_stamp() - config['last_trade_time_stamp']
+        if idle_seconds > config['update_lop_on_idle_days'] * 24 * 60 * 60:
+            # Stayed idle for too many days, update the last operation price to keep trading
+            new_lop = binance_helper.get_average_close_ratio(symbol, f'{config["update_lop_on_idle_days"]}d', config["update_lop_on_idle_days"])
+            config['last_trade_time_stamp'] = get_time_stamp()
+            config['last_operation_price'] = new_lop  
+            update_and_save_config_file(config)
+            binance_helper.log(f'Update the last operation price to {new_lop}, because there were no trades within {config["update_lop_on_idle_days"]} days', print_out)
+                        
+
     if print_out:
         difference_in_percent = 100 * (current_price - config['last_operation_price']) / config['last_operation_price']
         print(f'{symbol} cp -> {current_price} {config["target_currency"]}\tlop -> {config["last_operation_price"]} {config["target_currency"]}\tdif -> {int(current_price - config["last_operation_price"])} {config["target_currency"]} ({format(difference_in_percent, ".3f")}%)')
@@ -140,7 +153,9 @@ if __name__ == '__main__':
         'loss_prevention_percent': 8.0,
         'avoid_buy_on_daily_increase': True, # Avoid buying `base_currency` if it is pumped daily
         'avoid_buy_on_daily_increase_percent': 5.0,
-        'last_trade_time_stamp': -1.0
+        'last_trade_time_stamp': -1.0,
+        'update_lop_on_idle': True, # If the price went up, will never buy. Update lop to keep trading
+        'update_lop_on_idle_days': 3 # How many idle days should the bot wait before updating the price
     }
     
     # Fetch config files from fs

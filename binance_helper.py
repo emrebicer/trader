@@ -85,6 +85,40 @@ def get_server_timestamp() -> int:
     return int(response.json()['serverTime'])
 
 
+def get_klines_data(symbol, interval, limit = 1000):
+    accepted_intervals = ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w", "1M"]
+    
+    if interval not in accepted_intervals:
+        raise Exception(f'{interval} is not accepted; must be {accepted_intervals}')
+    
+    if type(limit) is not int:
+        raise Exception(f'limit must be an intereger but it was a {type(limit)}')
+
+    if limit > 1000:
+        raise Exception(f'limit can not be greater than 1000, it was {limit}')
+   
+    if limit <= 0:
+        raise Exception(f'limit must be a positive integer, it was {limit}')
+
+    target_url = f'{binance_constants.BASE_ENDPOINT}/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}'
+
+    response = requests.get(target_url)
+
+    if response.status_code != 200:
+        raise Exception(f'Failed while fetching klines data')
+    
+    return response.json()
+
+def get_average_close_ratio(symbol, interval, limit) -> float:
+    klines = get_klines_data(symbol, interval, limit)
+
+    total_close_values = 0.0
+
+    for kline in klines:
+        total_close_values += float(kline[4])
+
+    return total_close_values / len(klines) 
+     
 
 def write_config_file(config):
     with open(binance_constants.CONFIG_FILE, 'w') as config_file:
@@ -159,7 +193,9 @@ def validate_config_file(config):
         'loss_prevention_percent': float,
         'avoid_buy_on_daily_increase': bool,
         'avoid_buy_on_daily_increase_percent': float,
-        'last_trade_time_stamp': float
+        'last_trade_time_stamp': float,
+        'update_lop_on_idle': bool, 
+        'update_lop_on_idle_days': int 
     }
 
     # Check if an unknown key exists in the config file
