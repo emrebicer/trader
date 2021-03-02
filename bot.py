@@ -100,17 +100,20 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                 trader_local_data[symbol]['hook_price'] = current_price
                 binance_helper.log(f'Loss prevention !!! Hook price -> {current_price}, will sell after hook control ( {symbol} )', print_out)
 
-
+    # Check if the bot was idle for too long, if so update the lop
     if config['buy_on_next_trade'] and config['update_lop_on_idle'] and not trader_local_data[symbol]['hook']:
         # Calculate total idle seconds
         idle_seconds = get_time_stamp() - config['last_trade_time_stamp']
         if idle_seconds > config['update_lop_on_idle_days'] * 24 * 60 * 60:
             # Stayed idle for too many days, update the last operation price to keep trading
             new_lop = binance_helper.get_average_close_ratio(symbol, f'{config["update_lop_on_idle_days"]}d', config["update_lop_on_idle_days"])
+            if current_price < new_lop:
+                # If the current price is lower than the past days average, take it instead
+                new_lop = current_price 
             config['last_trade_time_stamp'] = get_time_stamp()
             config['last_operation_price'] = new_lop  
             update_and_save_config_file(config)
-            binance_helper.log(f'Update the last operation price to {new_lop}, because there were no trades within {config["update_lop_on_idle_days"]} days', print_out)
+            binance_helper.log(f'Update the lop to {new_lop} for {symbol}, because there were no trades within {config["update_lop_on_idle_days"]} days', print_out)
                         
 
     if print_out:
