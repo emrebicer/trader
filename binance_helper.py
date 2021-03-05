@@ -34,10 +34,16 @@ def update_quantity_according_lot_size_filter(symbol, quantity) -> str:
             for filter in filters:
                 if filter['filterType'] == 'LOT_SIZE':
                     step_size = float(filter['stepSize'])
-                    if quantity % step_size == 0:
-                        return quantity
-                    else:
-                        quantity -= (quantity % step_size)
+                    step_size_str = decimal.Context().create_decimal(repr(step_size))
+                    step_size_str = format(step_size_str, 'f')
+                    # Avoid doing this (even though the logic is correct for all scenarios)
+                    # unless step_size ends with 1
+                    # Because in small numbers, mod operation returns wrong results
+                    # which results in wrong quantity value thus fails the order request
+                    if step_size_str[len(step_size_str) - 1] != '1' and quantity % step_size != 0 and quantity % step_size > 0.00000001:
+                        quantity -= quantity % step_size
+
+                    # Make sure the quantity is not more precise than the precision
                     precision = get_precision_for_symbol(symbol)
                     quantity_str = str(value_to_decimal(quantity, precision))
                     return quantity_str
