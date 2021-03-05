@@ -43,9 +43,19 @@ def update_quantity_according_lot_size_filter(symbol, quantity) -> str:
                     if step_size_str[len(step_size_str) - 1] != '1' and quantity % step_size != 0 and quantity % step_size > 0.00000001:
                         quantity -= quantity % step_size
 
+                    step_size_prec = 0
+                    for ch in step_size_str:
+                        if ch == '.':
+                            continue
+                        elif ch != '0':
+                            break
+                        else:
+                            step_size_prec += 1
+
                     # Make sure the quantity is not more precise than the precision
                     precision = get_precision_for_symbol(symbol)
-                    quantity_str = str(value_to_decimal(quantity, precision))
+                    target_precision = min(precision, step_size_prec)
+                    quantity_str = str(value_to_decimal(quantity, target_precision))
                     return quantity_str
     
     raise Exception(f'{symbol} does not exist in the exchange info or LOT_SIZE is not in filters')
