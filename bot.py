@@ -37,7 +37,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
     try:
         current_price = binance_trade.get_current_trade_ratio(symbol)
     except requests.ConnectionError as ex:
-        binance_helper.log(f'Failed while fetching the current price for {symbol}, {ex}', print_out)
+        binance_helper.error_log(f'Failed while fetching the current price for {symbol}, {ex}', print_out)
         return
 
     if trader_local_data[symbol]['hook'] and config['buy_on_next_trade']:

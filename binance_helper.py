@@ -181,6 +181,14 @@ def log(message, dump_to_console):
     if dump_to_console:
         print(message)
 
+def error_log(message, dump_to_console):
+    date = datetime.datetime.now()
+    log = f'{date} - {message}'
+    with open(binance_constants.ERROR_LOG_FILE, 'a') as error_log_file:
+        error_log_file.write(f'{log}\n')
+    if dump_to_console:
+        print(message)
+
 def validate_config_file(config):
     
     if type(config) != list:
