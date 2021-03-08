@@ -7,6 +7,7 @@ import binance_constants
 import binance_helper
 import binance_trade
 import binance_account
+import requests
 
 # Keep track of hook and hook price for several symbols in this dictionary
 trader_local_data = {}
@@ -33,8 +34,12 @@ def update_and_save_config_file(config_instance):
 def perform_bot_operations(config, api_key, secret_key, print_out):
     
     symbol = config['base_currency'] + config['target_currency'] 
-    current_price = binance_trade.get_current_trade_ratio(symbol)
-    
+    try:
+        current_price = binance_trade.get_current_trade_ratio(symbol)
+    except requests.ConnectionError as ex:
+        binance_helper.log(f'Failed while fetching the current price for {symbol}, {ex}', print_out)
+        return
+
     if trader_local_data[symbol]['hook'] and config['buy_on_next_trade']:
         if current_price < trader_local_data[symbol]['hook_price']:
             trader_local_data[symbol]['hook_price'] = current_price
