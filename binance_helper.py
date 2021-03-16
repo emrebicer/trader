@@ -217,6 +217,8 @@ def validate_config_file(config):
         'loss_prevention_percent': float,
         'avoid_buy_on_daily_increase': bool,
         'avoid_buy_on_daily_increase_percent': float,
+        'avoid_buy_on_average_increase': bool,
+        'avoid_buy_on_average_day_count': int,
         'last_trade_time_stamp': float,
         'update_lop_on_idle': bool, 
         'update_lop_on_idle_days': int 

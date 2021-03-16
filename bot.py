@@ -89,6 +89,11 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             if config['avoid_buy_on_daily_increase'] and binance_helper.get_24hr_price_change_percent(symbol) > config['avoid_buy_on_daily_increase_percent']:
                 print(f'Won\'t buy beacuse daily increase percent is {binance_helper.get_24hr_price_change_percent(symbol)}%')
                 return
+            if config['avoid_buy_on_average_increase']:
+                average = binance_helper.get_average_close_ratio(symbol, '1d', config["avoid_buy_on_average_day_count"])
+                if current_price > average:
+                    print(f'Won\'t buy {symbol}, because average increase is {average} and current price is {curreny_price}')
+                    return
             trader_local_data[symbol]['hook'] = True
             trader_local_data[symbol]['hook_price'] = current_price
             binance_helper.log(f'Hook price -> {current_price}, will buy after hook control ( {symbol} )', print_out)
@@ -111,7 +116,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
         idle_seconds = get_time_stamp() - config['last_trade_time_stamp']
         if idle_seconds > config['update_lop_on_idle_days'] * 24 * 60 * 60:
             # Stayed idle for too many days, update the last operation price to keep trading
-            new_lop = binance_helper.get_average_close_ratio(symbol, f'{config["update_lop_on_idle_days"]}d', config["update_lop_on_idle_days"])
+            new_lop = binance_helper.get_average_close_ratio(symbol, '1d', config["update_lop_on_idle_days"])
             if current_price < new_lop:
                 # If the current price is lower than the past days average, take it instead
                 new_lop = current_price 
@@ -161,6 +166,8 @@ if __name__ == '__main__':
         'loss_prevention_percent': 8.0,
         'avoid_buy_on_daily_increase': True, # Avoid buying `base_currency` if it is pumped daily
         'avoid_buy_on_daily_increase_percent': 5.0,
+        'avoid_buy_on_average_increase': True, # Calculate the average of, `day_count` days and don't buy if higher
+        'avoid_buy_on_average_day_count': 30,
         'last_trade_time_stamp': -1.0,
         'update_lop_on_idle': True, # If the price went up, will never buy. Update lop to keep trading
         'update_lop_on_idle_days': 3 # How many idle days should the bot wait before updating the price

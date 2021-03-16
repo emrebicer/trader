@@ -78,7 +78,12 @@ def get_statistics(symbol, interval, limit = 1000):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) < 3:
         print("Please provide 2 arguments; SYMBOL and INTERVAL")
-    get_statistics(sys.argv[1], sys.argv[2])
+        exit()
+    if len(sys.argv) > 3:
+        limit = sys.argv[3]
+    else:
+        limit = 1000
+    get_statistics(sys.argv[1], sys.argv[2], limit)
 
