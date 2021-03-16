@@ -40,16 +40,36 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
         binance_helper.error_log(f'Failed while fetching the current price for {symbol}, {ex}', print_out)
         return
 
-    if trader_local_data[symbol]['hook'] and config['buy_on_next_trade']:
+    base_currency = config['base_currency']
+    target_currency = config['target_currency']
+    buy_on_next_trade = config['buy_on_next_trade']
+    last_operation_price = config['last_operation_price']
+    profit_percent = config['profit_percent']
+    hook_percent = config['hook_percent']
+    trade_with_percent_buy = config['trade_with_percent_buy']
+    trade_amount_buy = config['trade_amount_buy']
+    trade_wealth_percent_buy = config['trade_wealth_percent_buy']
+    trade_wealth_percent_sell = config['trade_wealth_percent_sell']
+    loss_prevention = config['loss_prevention']
+    loss_prevention_percent = config['loss_prevention_percent']
+    avoid_buy_on_daily_increase = config['avoid_buy_on_daily_increase']
+    avoid_buy_on_daily_increase_percent = config['avoid_buy_on_daily_increase_percent']
+    avoid_buy_on_average_increase = config['avoid_buy_on_average_increase']
+    avoid_buy_on_average_day_count = config['avoid_buy_on_average_day_count']
+    last_trade_time_stamp = config['last_trade_time_stamp']
+    update_lop_on_idle = config['update_lop_on_idle']
+    update_lop_on_idle_days = config['update_lop_on_idle_days']
+
+    if trader_local_data[symbol]['hook'] and buy_on_next_trade:
         if current_price < trader_local_data[symbol]['hook_price']:
             trader_local_data[symbol]['hook_price'] = current_price
-        elif current_price - trader_local_data[symbol]['hook_price'] > (config['last_operation_price'] * config['hook_percent'] / 100):
+        elif current_price - trader_local_data[symbol]['hook_price'] > (last_operation_price * hook_percent / 100):
             # Create buy order
-            if config['trade_with_percent_buy']:
-                target_amount = binance_account.get_free_balance_amount(api_key, secret_key, config['target_currency'])
-                target_amount = target_amount * config['trade_wealth_percent_buy'] / 100
+            if trade_with_percent_buy:
+                target_amount = binance_account.get_free_balance_amount(api_key, secret_key, target_currency)
+                target_amount = target_amount * trade_wealth_percent_buy / 100
             else:
-                target_amount = config['trade_amount_buy']
+                target_amount = trade_amount_buy
             quantity = target_amount / current_price
             result = binance_trade.create_market_order(api_key, secret_key, symbol, 'BUY', quantity)
             print(result)
@@ -61,16 +81,16 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             config['buy_on_next_trade'] = False
             config['last_operation_price'] = current_price
             update_and_save_config_file(config)
-            binance_helper.log(f'Bought {quantity} {config["base_currency"]} for {target_amount} {config["target_currency"]} ( {symbol} -> {current_price} )', print_out)
+            binance_helper.log(f'Bought {quantity} {base_currency} for {target_amount} {target_currency} ( {symbol} -> {current_price} )', print_out)
 
-    elif trader_local_data[symbol]['hook'] and not config['buy_on_next_trade']:
+    elif trader_local_data[symbol]['hook'] and not buy_on_next_trade:
         if current_price > trader_local_data[symbol]['hook_price']:
             trader_local_data[symbol]['hook_price'] = current_price
-        elif trader_local_data[symbol]['hook_price'] - current_price > (config['last_operation_price'] * config['hook_percent'] / 100):
+        elif trader_local_data[symbol]['hook_price'] - current_price > (last_operation_price * hook_percent / 100):
             # Create sell order
-            base_amount = binance_account.get_free_balance_amount(api_key, secret_key, config['base_currency'])
+            base_amount = binance_account.get_free_balance_amount(api_key, secret_key, base_currency)
             # Calculate total amount that we can trade
-            base_amount = base_amount * config['trade_wealth_percent_sell'] / 100
+            base_amount = base_amount * trade_wealth_percent_sell / 100
             result = binance_trade.create_market_order(api_key, secret_key, symbol, 'SELL', base_amount)
             print(result)
             if result['status'] != 'FILLED':
@@ -81,54 +101,55 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             config['buy_on_next_trade'] = True
             config['last_operation_price'] = current_price
             update_and_save_config_file(config)
-            binance_helper.log(f'Sold {base_amount} {config["base_currency"]} for {base_amount * current_price} {config["target_currency"]} ( {symbol} -> {current_price} )', print_out)
+            binance_helper.log(f'Sold {base_amount} {base_currency} for {base_amount * current_price} {target_currency} ( {symbol} -> {current_price} )', print_out)
 
-    elif config['buy_on_next_trade']:
+    elif buy_on_next_trade:
         # Check if the price has decreased by `profit_percent`
-        if current_price < config['last_operation_price'] - (config['last_operation_price'] * config['profit_percent'] / 100):
-            if config['avoid_buy_on_daily_increase'] and binance_helper.get_24hr_price_change_percent(symbol) > config['avoid_buy_on_daily_increase_percent']:
+        if current_price < last_operation_price - (last_operation_price * profit_percent / 100):
+            if avoid_buy_on_daily_increase and binance_helper.get_24hr_price_change_percent(symbol) > avoid_buy_on_daily_increase_percent:
                 print(f'Won\'t buy beacuse daily increase percent is {binance_helper.get_24hr_price_change_percent(symbol)}%')
                 return
-            if config['avoid_buy_on_average_increase']:
-                average = binance_helper.get_average_close_ratio(symbol, '1d', config["avoid_buy_on_average_day_count"])
+            if avoid_buy_on_average_increase:
+                average = binance_helper.get_average_close_ratio(symbol, '1d', avoid_buy_on_average_day_count)
                 if current_price > average:
-                    print(f'Won\'t buy {symbol}, because average increase is {average} and current price is {curreny_price}')
+                    print(f'Won\'t buy {symbol}, because average increase is {average} and current price is {current_price}')
                     return
             trader_local_data[symbol]['hook'] = True
             trader_local_data[symbol]['hook_price'] = current_price
             binance_helper.log(f'Hook price -> {current_price}, will buy after hook control ( {symbol} )', print_out)
     else:
         # Check if the price has increased by `profit_percent`
-        if current_price > config['last_operation_price'] + (config['last_operation_price'] * config['profit_percent'] / 100):
+        if current_price > last_operation_price + (last_operation_price * profit_percent / 100):
             trader_local_data[symbol]['hook'] = True
             trader_local_data[symbol]['hook_price'] = current_price
             binance_helper.log(f'Hook price -> {current_price}, will sell after hook control ( {symbol} )', print_out)
-        elif config['loss_prevention']:
+        elif loss_prevention:
             # Check for the current loss, if it is over `loss_prevention_percent` set the hook for selling
-            if current_price < config['last_operation_price'] - (config['last_operation_price'] * config['loss_prevention_percent']):
+            if current_price < last_operation_price - (last_operation_price * loss_prevention_percent):
                 trader_local_data[symbol]['hook'] = True
                 trader_local_data[symbol]['hook_price'] = current_price
                 binance_helper.log(f'Loss prevention !!! Hook price -> {current_price}, will sell after hook control ( {symbol} )', print_out)
 
     # Check if the bot was idle for too long, if so update the lop
-    if config['buy_on_next_trade'] and config['update_lop_on_idle'] and not trader_local_data[symbol]['hook']:
+    if buy_on_next_trade and update_lop_on_idle and not trader_local_data[symbol]['hook']:
         # Calculate total idle seconds
-        idle_seconds = get_time_stamp() - config['last_trade_time_stamp']
-        if idle_seconds > config['update_lop_on_idle_days'] * 24 * 60 * 60:
+        idle_seconds = get_time_stamp() - last_trade_time_stamp
+        if idle_seconds > update_lop_on_idle_days * 24 * 60 * 60:
             # Stayed idle for too many days, update the last operation price to keep trading
-            new_lop = binance_helper.get_average_close_ratio(symbol, '1d', config["update_lop_on_idle_days"])
+            new_lop = binance_helper.get_average_close_ratio(symbol, '1d', update_lop_on_idle_days)
             if current_price < new_lop:
                 # If the current price is lower than the past days average, take it instead
                 new_lop = current_price 
             config['last_trade_time_stamp'] = get_time_stamp()
             config['last_operation_price'] = new_lop  
             update_and_save_config_file(config)
-            binance_helper.log(f'Update the lop to {new_lop} for {symbol}, because there were no trades within {config["update_lop_on_idle_days"]} days', print_out)
+            binance_helper.log(f'Update the lop to {new_lop} for {symbol}, because there were no trades within {update_lop_on_idle_days} days', print_out)
                         
 
     if print_out:
-        difference_in_percent = 100 * (current_price - config['last_operation_price']) / config['last_operation_price']
-        print(f'{symbol} cp -> {current_price} {config["target_currency"]}\tlop -> {config["last_operation_price"]} {config["target_currency"]}\tdif -> {int(current_price - config["last_operation_price"])} {config["target_currency"]} ({format(difference_in_percent, ".3f")}%)')
+        difference_in_percent = 100 * (current_price - last_operation_price) / last_operation_price
+        print(f'{symbol} cp -> {current_price} {target_currency}\tlop -> {last_operation_price} {target_currency}\tdif -> '
+        f'{int(current_price - last_operation_price)} {target_currency} ({format(difference_in_percent, ".3f")}%)')
 
 
 def get_time_stamp():
