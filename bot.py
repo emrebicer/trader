@@ -143,7 +143,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             config['last_trade_time_stamp'] = get_time_stamp()
             config['last_operation_price'] = new_lop  
             update_and_save_config_file(config)
-            binance_helper.log(f'Update the lop to {new_lop} for {symbol}, because there were no trades within {update_lop_on_idle_days} days', print_out)
+            binance_helper.log(f'Update the lop to {new_lop} from {current_price} for {symbol}, because there were no trades within {update_lop_on_idle_days} days', print_out)
                         
 
     if print_out:
@@ -173,6 +173,7 @@ if __name__ == '__main__':
 
     # Default config values
     default_config = {
+        'enabled': True, # if true actively trade with this config, else dismiss
         'base_currency': 'BTC', # First currency in the trade
         'target_currency': 'USDT', # Second currency in the trade, want to maximize this asset
         'buy_on_next_trade': True, # Buy `base_currency` at the next trade
@@ -223,7 +224,8 @@ if __name__ == '__main__':
     
     while True:
         for current_config in master_config_files:
-            perform_bot_operations(current_config, api_key, secret_key, print_out) 
+            if current_config['enabled']:
+                perform_bot_operations(current_config, api_key, secret_key, print_out) 
         if print_out:
             print('---------------------------------------------------------------------------------')
         time.sleep(5)

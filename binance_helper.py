@@ -203,6 +203,7 @@ def validate_config_file(config):
         prev_symbols.append(current_symbol)
 
     expected_config_keys = {
+        'enabled': bool,
         'base_currency': str,
         'target_currency': str,
         'buy_on_next_trade': bool,
