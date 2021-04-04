@@ -39,12 +39,15 @@ def get_statistics(symbol, interval, limit = 1000):
     decrease_average = 0
     max_increase = 0
     max_decrease = 0
+    all_close_average = 0
 
 
     for current_kline in klines_data:
 
         for data_index in range(len(current_kline)):
             current_kline[data_index] = float(current_kline[data_index])
+        
+        all_close_average += current_kline[4]
 
         if previous_data[0] == current_kline[0]:
             continue
@@ -67,6 +70,7 @@ def get_statistics(symbol, interval, limit = 1000):
     
     increase_average = increase_average / closed_higher_count
     decrease_average = decrease_average / closed_lower_count
+    all_close_average = all_close_average / (len(klines_data) - 1)
 
     print('\n\n\n')
     print(f'Closed higher: {closed_higher_count} --- ({closed_higher_count * 100.0 / (len(klines_data) - 1)}%) {POSITIVE_EMOJI}')
@@ -75,15 +79,12 @@ def get_statistics(symbol, interval, limit = 1000):
     print(f'Decrease average: {decrease_average}')
     print(f'Max increase: {max_increase}')
     print(f'Max decrease: {max_decrease}')
+    print(f'All close average: {all_close_average}')
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Please provide 2 arguments; SYMBOL and INTERVAL")
+    if len(sys.argv) < 4:
+        print("Please provide 3 arguments; SYMBOL, INTERVAL and LIMIT")
         exit()
-    if len(sys.argv) > 3:
-        limit = sys.argv[3]
-    else:
-        limit = 1000
-    get_statistics(sys.argv[1], sys.argv[2], limit)
+    get_statistics(sys.argv[1], sys.argv[2], sys.argv[3])
 
