@@ -148,9 +148,22 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                         
 
     if print_out:
+        owned_asset = '🚩' if not buy_on_next_trade else '✖'
+        # Calculate if the direction of the symbol is good
+        if buy_on_next_trade:
+            if current_price < last_operation_price:
+                asset_state = '🔼'
+            else:
+                asset_state = '🔻'
+        else:
+            if current_price > last_operation_price:
+                asset_state = '🔼'
+            else:
+                asset_state = '🔻'
+
         difference_in_percent = 100 * (current_price - last_operation_price) / last_operation_price
-        print(f'{symbol} cp -> {current_price} {target_currency}\tlop -> {last_operation_price} {target_currency}\tdif -> '
-        f'{int(current_price - last_operation_price)} {target_currency} ({format(difference_in_percent, ".3f")}%)')
+        print(f'{owned_asset} {asset_state}\t{symbol} \tcp -> {format(current_price, ".3f")} {target_currency}\tlop -> {format(last_operation_price, ".3f")} {target_currency}\tdif -> '
+        f'{format(current_price - last_operation_price, ".3f")} {target_currency} ({format(difference_in_percent, ".3f")}%)')
 
 
 def get_time_stamp():
