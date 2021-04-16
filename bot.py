@@ -44,7 +44,8 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
     target_currency = config['target_currency']
     buy_on_next_trade = config['buy_on_next_trade']
     last_operation_price = config['last_operation_price']
-    profit_percent = config['profit_percent']
+    profit_percent_buy = config['profit_percent_buy']
+    profit_percent_sell = config['profit_percent_sell']
     hook_percent = config['hook_percent']
     trade_with_percent_buy = config['trade_with_percent_buy']
     trade_amount_buy = config['trade_amount_buy']
@@ -104,8 +105,8 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             binance_helper.log(f'Sold {base_amount} {base_currency} for {base_amount * current_price} {target_currency} ( {symbol} -> {current_price} )', print_out)
 
     elif buy_on_next_trade:
-        # Check if the price has decreased by `profit_percent`
-        if current_price < last_operation_price - (last_operation_price * profit_percent / 100):
+        # Check if the price has decreased by `profit_percent_buy`
+        if current_price < last_operation_price - (last_operation_price * profit_percent_buy / 100):
             if avoid_buy_on_daily_increase and binance_helper.get_24hr_price_change_percent(symbol) > avoid_buy_on_daily_increase_percent:
                 print(f'Won\'t buy beacuse daily increase percent is {binance_helper.get_24hr_price_change_percent(symbol)}%')
                 return
@@ -118,8 +119,8 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             trader_local_data[symbol]['hook_price'] = current_price
             binance_helper.log(f'Hook price -> {current_price}, will buy after hook control ( {symbol} )', print_out)
     else:
-        # Check if the price has increased by `profit_percent`
-        if current_price > last_operation_price + (last_operation_price * profit_percent / 100):
+        # Check if the price has increased by `profit_percent_sell`
+        if current_price > last_operation_price + (last_operation_price * profit_percent_sell / 100):
             trader_local_data[symbol]['hook'] = True
             trader_local_data[symbol]['hook_price'] = current_price
             binance_helper.log(f'Hook price -> {current_price}, will sell after hook control ( {symbol} )', print_out)
@@ -174,11 +175,12 @@ if __name__ == '__main__':
     # Default config values
     default_config = {
         'enabled': True, # if true actively trade with this config, else dismiss
-        'base_currency': 'BTC', # First currency in the trade
-        'target_currency': 'USDT', # Second currency in the trade, want to maximize this asset
+        'base_currency': 'BTC', # First currency asset in the symbol 
+        'target_currency': 'USDT', # Second currency asset in the symbol, want to maximize this asset
         'buy_on_next_trade': True, # Buy `base_currency` at the next trade
         'last_operation_price': -1.0, # Previous trade price, if there is no trade (-1), set to current price
-        'profit_percent': 2.0, # How much should the increase or decrease should be for hooking
+        'profit_percent_buy': 2.5, # How much should the decrease should be for buying
+        'profit_percent_sell': 2.0, # How much should the incease should be for selling 
         'hook_percent': 0.5, # After granting profit, wait until `hook_percent` of loss to ensure to maximize the profit
         'trade_with_percent_buy': True, # Use percent or constant amount of `target_currency` when buying `base_currency`
         'trade_amount_buy': 15.0, # Constant amount of `target_currency` to use while buying `base_currency`
@@ -191,7 +193,7 @@ if __name__ == '__main__':
         'avoid_buy_on_average_increase': True, # Calculate the average of, `day_count` days and don't buy if higher
         'avoid_buy_on_average_day_count': 30,
         'last_trade_time_stamp': -1.0,
-        'update_lop_on_idle': True, # If the price went up, will never buy. Update lop to keep trading
+        'update_lop_on_idle': True, # If the price went up, will never buy. Update lop after idle `days` to keep trading
         'update_lop_on_idle_days': 3 # How many idle days should the bot wait before updating the price
     }
     
