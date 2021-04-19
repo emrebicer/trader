@@ -1,7 +1,16 @@
 
 import os
 
-LOG_FILE = 'binance_log.txt'
+bot_config_pairs = [
+    ('Primitive spot bot', 'log_primitive_spot_bot.txt')
+]
+
+for index in range(len(bot_config_pairs)):
+    print(f'{index} --> {bot_config_pairs[index][0]}')
+
+
+LOG_FILE = bot_config_pairs[int(input('Select the config: '))][1]
+
 
 # Read the log file
 log_file_exact_path = os.path.join(os.path.dirname(os.getcwd()), LOG_FILE)

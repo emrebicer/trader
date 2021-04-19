@@ -3,8 +3,9 @@ import time
 import os
 import sys
 import time
-import binance_constants
+import constants
 import binance_helper
+import primitive_spot_bot_helper
 import binance_trade
 import binance_account
 import requests
@@ -25,7 +26,7 @@ def update_and_save_config_file(config_instance):
         
         if instance_symbol == current_symbol:
             master_config_files[current_config_index] = config_instance
-            binance_helper.write_config_file(master_config_files)
+            primitive_spot_bot_helper.write_config_file(master_config_files)
             return
 
     raise Exception(f'The symbol {instance_symbol} was not found in the {master_config_files}')
@@ -37,7 +38,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
     try:
         current_price = binance_trade.get_current_trade_ratio(symbol)
     except requests.ConnectionError as ex:
-        binance_helper.error_log(f'Failed while fetching the current price for {symbol}, {ex}', print_out)
+        primitive_spot_bot_helper.error_log(f'Failed while fetching the current price for {symbol}, {ex}', print_out)
         return
 
     base_currency = config['base_currency']
@@ -82,7 +83,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             config['buy_on_next_trade'] = False
             config['last_operation_price'] = current_price
             update_and_save_config_file(config)
-            binance_helper.log(f'Bought {quantity} {base_currency} for {target_amount} {target_currency} ( {symbol} -> {current_price} )', print_out)
+            primitive_spot_bot_helper.log(f'Bought {quantity} {base_currency} for {target_amount} {target_currency} ( {symbol} -> {current_price} )', print_out)
 
     elif trader_local_data[symbol]['hook'] and not buy_on_next_trade:
         if current_price > trader_local_data[symbol]['hook_price']:
@@ -102,7 +103,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             config['buy_on_next_trade'] = True
             config['last_operation_price'] = current_price
             update_and_save_config_file(config)
-            binance_helper.log(f'Sold {base_amount} {base_currency} for {base_amount * current_price} {target_currency} ( {symbol} -> {current_price} )', print_out)
+            primitive_spot_bot_helper.log(f'Sold {base_amount} {base_currency} for {base_amount * current_price} {target_currency} ( {symbol} -> {current_price} )', print_out)
 
     elif buy_on_next_trade:
         # Check if the price has decreased by `profit_percent_buy`
@@ -117,19 +118,19 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                     return
             trader_local_data[symbol]['hook'] = True
             trader_local_data[symbol]['hook_price'] = current_price
-            binance_helper.log(f'Hook price -> {current_price}, will buy after hook control ( {symbol} )', print_out)
+            primitive_spot_bot_helper.log(f'Hook price -> {current_price}, will buy after hook control ( {symbol} )', print_out)
     else:
         # Check if the price has increased by `profit_percent_sell`
         if current_price > last_operation_price + (last_operation_price * profit_percent_sell / 100):
             trader_local_data[symbol]['hook'] = True
             trader_local_data[symbol]['hook_price'] = current_price
-            binance_helper.log(f'Hook price -> {current_price}, will sell after hook control ( {symbol} )', print_out)
+            primitive_spot_bot_helper.log(f'Hook price -> {current_price}, will sell after hook control ( {symbol} )', print_out)
         elif loss_prevention:
             # Check for the current loss, if it is over `loss_prevention_percent` set the hook for selling
             if current_price < last_operation_price - (last_operation_price * loss_prevention_percent):
                 trader_local_data[symbol]['hook'] = True
                 trader_local_data[symbol]['hook_price'] = current_price
-                binance_helper.log(f'Loss prevention !!! Hook price -> {current_price}, will sell after hook control ( {symbol} )', print_out)
+                primitive_spot_bot_helper.log(f'Loss prevention !!! Hook price -> {current_price}, will sell after hook control ( {symbol} )', print_out)
 
     # Check if the bot was idle for too long, if so update the lop
     if buy_on_next_trade and update_lop_on_idle and not trader_local_data[symbol]['hook']:
@@ -144,7 +145,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             config['last_trade_time_stamp'] = get_time_stamp()
             config['last_operation_price'] = new_lop  
             update_and_save_config_file(config)
-            binance_helper.log(f'Update the lop to {new_lop} from {current_price} for {symbol}, because there were no trades within {update_lop_on_idle_days} days', print_out)
+            primitive_spot_bot_helper.log(f'Update the lop to {new_lop} from {current_price} for {symbol}, because there were no trades within {update_lop_on_idle_days} days', print_out)
                         
 
     if print_out:
@@ -182,7 +183,7 @@ if __name__ == '__main__':
     secret_key = ''
 
     # Read the api key and api secret key
-    with open('binance_api_keys.json', 'r') as credentials_file:
+    with open(constants.BINANCE_API_KEYS_FILE, 'r') as credentials_file:
         keys = json.loads(credentials_file.read())
         api_key = keys['api_key']
         secret_key = keys['secret_key']
@@ -213,7 +214,7 @@ if __name__ == '__main__':
     }
     
     # Fetch config files from fs
-    final_config_files = binance_helper.load_config_file(default_config)
+    final_config_files = primitive_spot_bot_helper.load_config_file(default_config)
     
     # Append the individual config files to global var `master_config_files`
     for current_config in final_config_files:
@@ -231,10 +232,10 @@ if __name__ == '__main__':
         trader_local_data[symbol] = {'hook': False, 'hook_price': -1}
     
     # Validate the config file
-    binance_helper.validate_config_file(master_config_files)
+    primitive_spot_bot_helper.validate_config_file(master_config_files)
     
     # Update config on the file system
-    binance_helper.write_config_file(master_config_files)
+    primitive_spot_bot_helper.write_config_file(master_config_files)
     
     if print_out:
         print(f'Starting the bot with this config:\n\n{json.dumps(master_config_files, indent=4)}\n')
@@ -244,7 +245,7 @@ if __name__ == '__main__':
             if current_config['enabled']:
                 perform_bot_operations(current_config, api_key, secret_key, print_out) 
         if print_out:
-            print('---------------------------------------------------------------------------------')
+            print('-' * 30)
         time.sleep(5)
 
 

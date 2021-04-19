@@ -6,7 +6,15 @@ Calculates total amount to spend on enabled symbols
 import os
 import json
 
-CONFIG_FILE = 'binance_trader_config.json'
+bot_config_pairs = [
+    ('Primitive spot bot', 'config_primitive_spot_bot.json')
+]
+
+for index in range(len(bot_config_pairs)):
+    print(f'{index} --> {bot_config_pairs[index][0]}')
+
+
+CONFIG_FILE = bot_config_pairs[int(input('Select the config: '))][1]
 
 # Read the config file
 config_file_exact_path = os.path.join(os.path.dirname(os.getcwd()), CONFIG_FILE)

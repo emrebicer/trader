@@ -1,0 +1,5 @@
+BASE_ENDPOINT = 'https://api2.binance.com'
+PRIMITIVE_SPOT_BOT_LOG_FILE = 'log_primitive_spot_bot.txt'
+PRIMITIVE_SPOT_BOT_ERROR_LOG_FILE = 'error_log_primitive_spot_bot.txt'
+PRIMITIVE_SPOT_BOT_CONFIG_FILE = 'config_primitive_spot_bot.json'
+BINANCE_API_KEYS_FILE = 'binance_api_keys.json'

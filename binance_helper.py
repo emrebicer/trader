@@ -1,16 +1,14 @@
-import os
 import requests
 import hmac
 import decimal
-import datetime
 import hashlib
-import json
-import binance_constants
+import datetime
+import constants
 
 
 def get_precision_for_symbol(symbol) -> int:
     """ Get the maximum allowed number of decimal points for the given symbol """
-    response = requests.get(f'{binance_constants.BASE_ENDPOINT}/api/v3/exchangeInfo')
+    response = requests.get(f'{constants.BASE_ENDPOINT}/api/v3/exchangeInfo')
     response_dict = response.json()
     for info in response_dict['symbols']:
         if info['symbol'] == symbol:
@@ -26,7 +24,7 @@ def update_quantity_according_lot_size_filter(symbol, quantity) -> str:
         restriction 1 -> quantity % step_size == 0
         restriction 2 -> quantity must have maximum `precision` decimal points
     """
-    response = requests.get(f'{binance_constants.BASE_ENDPOINT}/api/v3/exchangeInfo')
+    response = requests.get(f'{constants.BASE_ENDPOINT}/api/v3/exchangeInfo')
     response_dict = response.json()
     for info in response_dict['symbols']:
         if info['symbol'] == symbol:
@@ -76,7 +74,7 @@ def value_to_decimal(value, decimal_places):
 
 def get_24h_statistics(symbol):
 
-    url = f'{binance_constants.BASE_ENDPOINT}/api/v3/ticker/24hr?symbol={symbol}'
+    url = f'{constants.BASE_ENDPOINT}/api/v3/ticker/24hr?symbol={symbol}'
     response = requests.get(url)
 
     if response.status_code != 200:
@@ -93,7 +91,7 @@ def get_24hr_price_change_percent(symbol) -> float:
 
 
 def get_server_timestamp() -> int:    
-    response = requests.get(f'{binance_constants.BASE_ENDPOINT}/api/v3/time')
+    response = requests.get(f'{constants.BASE_ENDPOINT}/api/v3/time')
 
     if response.status_code != 200:
         raise Exception('Failed while fetching server time')
@@ -116,7 +114,7 @@ def get_klines_data(symbol, interval, limit = 1000):
     if limit <= 0:
         raise Exception(f'limit must be a positive integer, it was {limit}')
 
-    target_url = f'{binance_constants.BASE_ENDPOINT}/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}'
+    target_url = f'{constants.BASE_ENDPOINT}/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}'
 
     response = requests.get(target_url)
 
@@ -134,106 +132,14 @@ def get_average_close_ratio(symbol, interval, limit) -> float:
         total_close_values += float(kline[4])
 
     return total_close_values / len(klines) 
-     
 
-def write_config_file(config):
-    with open(binance_constants.CONFIG_FILE, 'w') as config_file:
-        config_file.write(json.dumps(config, indent=4))
-
-def fill_empty_fields_with_default_config(current_config, default_config) -> dict:
-    if current_config['base_currency'] and current_config['target_currency']:
-        symbol = current_config['base_currency'] + current_config['target_currency']
-    else:
-        symbol = default_config['base_currency'] + default_config['target_currency']
-    
-    for key in default_config:
-        if key not in current_config:
-            current_config[key] = default_config[key]
-            print(f'Updated `{key}` key in {symbol} config')
-    return current_config
-
-def load_config_file(default_config) -> list:
-    final_config_files = []
-
-    # If a config file exists on the fs, load it
-    if os.path.isfile(os.path.join(os.getcwd(), binance_constants.CONFIG_FILE)):
-        with open(binance_constants.CONFIG_FILE, 'r') as config_file:
-            saved_config = json.loads(config_file.read())
-            if type(saved_config) == dict:
-                temp = saved_config
-                saved_config = []
-                saved_config.append(temp)
-            
-            for current_config in saved_config:
-                final_config_files.append(fill_empty_fields_with_default_config(current_config, default_config))
-            
-    else:
-        # Just start the bot with the default config file
-        final_config_files.append(default_config)
-
-    return final_config_files
-
-def log(message, dump_to_console):
+def log(filename, message, dump_to_console):
     date = datetime.datetime.now()
     log = f'{date} - {message}'
-    with open(binance_constants.LOG_FILE, 'a') as log_file:
+    with open(filename, 'a') as log_file:
         log_file.write(f'{log}\n')
     if dump_to_console:
         print(message)
 
-def error_log(message, dump_to_console):
-    date = datetime.datetime.now()
-    log = f'{date} - {message}'
-    with open(binance_constants.ERROR_LOG_FILE, 'a') as error_log_file:
-        error_log_file.write(f'{log}\n')
-    if dump_to_console:
-        print(message)
-
-def validate_config_file(config):
-    
-    if type(config) != list:
-        raise Exception(f'Configuration error: the config file must be a list!')
-    
-    # Make sure each config has a unique symbol
-    prev_symbols = []
-    for current_config in config:
-        current_symbol = current_config['base_currency'] + current_config['target_currency']
-        if current_symbol in prev_symbols:
-            raise Exception(f'{current_symbol} config duplicate')
-        prev_symbols.append(current_symbol)
-
-    expected_config_keys = {
-        'enabled': bool,
-        'base_currency': str,
-        'target_currency': str,
-        'buy_on_next_trade': bool,
-        'last_operation_price': float,
-        'profit_percent_buy': float,
-        'profit_percent_sell': float,
-        'hook_percent': float,
-        'trade_with_percent_buy': bool,
-        'trade_amount_buy': float,
-        'trade_wealth_percent_buy': float,
-        'trade_wealth_percent_sell': float,
-        'loss_prevention': bool,
-        'loss_prevention_percent': float,
-        'avoid_buy_on_daily_increase': bool,
-        'avoid_buy_on_daily_increase_percent': float,
-        'avoid_buy_on_average_increase': bool,
-        'avoid_buy_on_average_day_count': int,
-        'last_trade_time_stamp': float,
-        'update_lop_on_idle': bool, 
-        'update_lop_on_idle_days': int 
-    }
-
-    # Check if an unknown key exists in the config file
-    for current_config in config:
-        for key in current_config:
-            if key not in expected_config_keys:
-                raise Exception(f'{key} was not expected in the config')
-    
-    for current_config in config:
-        for key in expected_config_keys:
-            if type(current_config[key]) is not expected_config_keys[key]:
-                raise Exception(f'Configuration error: Type of "{key}" must be '
-                f'{expected_config_keys[key]}, but it is a {type(current_config[key])}')
+def error_log(filename, message, dump_to_console):
+    log(filename, message, dump_to_console)
