@@ -245,7 +245,7 @@ if __name__ == '__main__':
             if current_config['enabled']:
                 perform_bot_operations(current_config, api_key, secret_key, print_out) 
         if print_out:
-            print('-' * 30)
+            print('-' * 115)
         time.sleep(5)
 
 
