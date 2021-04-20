@@ -133,6 +133,60 @@ def get_average_close_ratio(symbol, interval, limit) -> float:
 
     return total_close_values / len(klines) 
 
+def get_rsi(symbol, time_frame, moving_average = 0, data_count = 14) -> float:
+    """
+        Returns Relative Strength Index
+
+        moving_average
+            0 - SMA (Simple Moving Average)
+            1 - EMA (Exponential Moving Average)
+    """
+
+    # Fetch <data_count + 1> days to calculate the change on <data_count> days
+    klines = get_klines_data(symbol, time_frame, data_count + 1)
+
+    change_up = []
+    change_down = []
+
+    if len(klines) == 0:
+        return 0
+
+    for index in range(1, len(klines)):
+
+        current_close = float(klines[index][4])
+        prev_close = float(klines[index - 1][4])
+
+        diff = current_close - prev_close
+
+        if diff > 0:
+            change_up.append(diff)
+            change_down.append(0)
+        else:
+            change_down.append(-diff)
+            change_up.append(0)
+
+    up_avg = sum(change_up) / len(change_up)
+    down_avg = sum(change_down) / len(change_down)
+
+    if moving_average == 0:
+        rs = up_avg / down_avg 
+        return 100 - (100 / (1 + rs))
+
+    elif moving_average == 1:
+        a = 2 / ( data_count + 1 )
+        for index in range(0, len(change_up)):
+            up_avg = a * change_up[index] + (1 - a) * up_avg 
+
+        for index in range(0, len(change_down)):
+            down_avg = a * change_down[index] + (1 - a) * down_avg 
+
+        rs = up_avg / down_avg 
+        rsi = 100 - (100 / ( 1 + rs))
+        return rsi
+    
+    else:
+        raise Exception(f'<{moving_average}> is not valid for moving average parameter')
+
 def log(filename, message, dump_to_console):
     date = datetime.datetime.now()
     log = f'{date} - {message}'
