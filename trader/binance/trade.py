@@ -1,10 +1,10 @@
 import requests
-import binance_helper
-import constants
+import trader.binance.helper
+import trader.constants
 
 
 def get_current_trade_ratio(symbol) -> float:
-    response = requests.get(f'{constants.BASE_ENDPOINT}/api/v3/ticker/24hr?symbol={symbol}')
+    response = requests.get(f'{trader.constants.BASE_ENDPOINT}/api/v3/ticker/24hr?symbol={symbol}')
 
     if response.status_code != 200:
         raise Exception('Failed to fetch trade ratio')
@@ -17,14 +17,14 @@ def get_current_trade_ratio(symbol) -> float:
 
 
 def create_limit_order(api_key, secret_key, symbol, side, quantity, price) -> dict:
-    quantity_str = binance_helper.update_quantity_according_lot_size_filter(symbol, quantity)
+    quantity_str = trader.binance.helper.update_quantity_according_lot_size_filter(symbol, quantity)
     price = get_current_trade_ratio(symbol)
-    timestamp = binance_helper.get_server_timestamp()
+    timestamp = trader.binance.helper.get_server_timestamp()
     total_params = f'symbol={symbol}&side={side}&type=LIMIT&timestamp={timestamp}&quantity={quantity_str}&price={price}&timeInForce=GTC'
-    signature = binance_helper.create_signature(secret_key, total_params)
+    signature = trader.binance.helper.create_signature(secret_key, total_params)
     headers = {'X-MBX-APIKEY': api_key}
 
-    response = requests.post(f'{constants.BASE_ENDPOINT}/api/v3/order?{total_params}&signature={signature}', headers = headers)
+    response = requests.post(f'{trader.constants.BASE_ENDPOINT}/api/v3/order?{total_params}&signature={signature}', headers = headers)
 
     if response.status_code != 200:
         print(response.json())
@@ -34,13 +34,13 @@ def create_limit_order(api_key, secret_key, symbol, side, quantity, price) -> di
 
 def create_market_order(api_key, secret_key, symbol, side, quantity) -> dict:
     """ Buy instantly at the current price """
-    quantity_str = binance_helper.update_quantity_according_lot_size_filter(symbol, quantity)
-    timestamp = binance_helper.get_server_timestamp()
+    quantity_str = trader.binance.helper.update_quantity_according_lot_size_filter(symbol, quantity)
+    timestamp = trader.binance.helper.get_server_timestamp()
     total_params = f'symbol={symbol}&side={side}&type=MARKET&timestamp={timestamp}&quantity={quantity_str}'
-    signature = binance_helper.create_signature(secret_key, total_params)
+    signature = trader.binance.helper.create_signature(secret_key, total_params)
     headers = {'X-MBX-APIKEY': api_key}
 
-    response = requests.post(f'{constants.BASE_ENDPOINT}/api/v3/order?{total_params}&signature={signature}', headers = headers)
+    response = requests.post(f'{trader.constants.BASE_ENDPOINT}/api/v3/order?{total_params}&signature={signature}', headers = headers)
 
     if response.status_code != 200:
         print(response.json())

@@ -1,8 +1,8 @@
 import os
 import json
 import datetime
-import constants
-import binance_helper 
+import trader.constants
+import trader.binance.helper 
 
 def fill_empty_fields_with_default_config(current_config, default_config) -> dict:
     if current_config['base_currency'] and current_config['target_currency']:
@@ -20,8 +20,8 @@ def load_config_file(default_config) -> list:
     final_config_files = []
 
     # If a config file exists on the fs, load it
-    if os.path.isfile(os.path.join(os.getcwd(), constants.PRIMITIVE_SPOT_BOT_CONFIG_FILE)):
-        with open(constants.PRIMITIVE_SPOT_BOT_CONFIG_FILE, 'r') as config_file:
+    if os.path.isfile(os.path.join(os.getcwd(), trader.constants.PRIMITIVE_SPOT_BOT_CONFIG_FILE)):
+        with open(trader.constants.PRIMITIVE_SPOT_BOT_CONFIG_FILE, 'r') as config_file:
             saved_config = json.loads(config_file.read())
             if type(saved_config) == dict:
                 temp = saved_config
@@ -38,7 +38,7 @@ def load_config_file(default_config) -> list:
     return final_config_files
 
 def write_config_file(config):
-    with open(constants.PRIMITIVE_SPOT_BOT_CONFIG_FILE, 'w') as config_file:
+    with open(trader.constants.PRIMITIVE_SPOT_BOT_CONFIG_FILE, 'w') as config_file:
         config_file.write(json.dumps(config, indent=4))
 
 def validate_config_file(config):
@@ -91,7 +91,7 @@ def validate_config_file(config):
                 f'{expected_config_keys[key]}, but it is a {type(current_config[key])}')
 
 def log(message, dump_to_console):
-    binance_helper.log(constants.PRIMITIVE_SPOT_BOT_LOG_FILE, message, dump_to_console)
+    trader.binance.helper.log(trader.constants.PRIMITIVE_SPOT_BOT_LOG_FILE, message, dump_to_console)
 
 def error_log(message, dump_to_console):
-    binance_helper.error_log(constants.PRIMITIVE_SPOT_BOT_ERROR_LOG_FILE, message, dump_to_console)
+    trader.binance.helper.error_log(trader.constants.PRIMITIVE_SPOT_BOT_ERROR_LOG_FILE, message, dump_to_console)

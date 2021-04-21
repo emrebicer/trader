@@ -1,16 +1,15 @@
-
 import requests
-import binance_helper
-import constants
+import trader.binance.helper
+import trader.constants
 
 
 def get_account_information(api_key, secret_key) -> dict:
-    timestamp = binance_helper.get_server_timestamp()
+    timestamp = trader.binance.helper.get_server_timestamp()
     total_params = f'timestamp={timestamp}'
-    signature = binance_helper.create_signature(secret_key, total_params)
+    signature = trader.binance.helper.create_signature(secret_key, total_params)
     headers = {'X-MBX-APIKEY': api_key}
 
-    response = requests.get(f'{constants.BASE_ENDPOINT}/api/v3/account?{total_params}&signature={signature}', headers = headers)
+    response = requests.get(f'{trader.constants.BASE_ENDPOINT}/api/v3/account?{total_params}&signature={signature}', headers = headers)
 
     if response.status_code != 200:
         print(response.json())

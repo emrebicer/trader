@@ -1,14 +1,16 @@
-import requests
+"""
+    Binance helper functions
+"""
 import hmac
 import decimal
 import hashlib
 import datetime
-import constants
-
+import requests
+import trader.constants
 
 def get_precision_for_symbol(symbol) -> int:
     """ Get the maximum allowed number of decimal points for the given symbol """
-    response = requests.get(f'{constants.BASE_ENDPOINT}/api/v3/exchangeInfo')
+    response = requests.get(f'{trader.constants.BASE_ENDPOINT}/api/v3/exchangeInfo')
     response_dict = response.json()
     for info in response_dict['symbols']:
         if info['symbol'] == symbol:
@@ -18,20 +20,20 @@ def get_precision_for_symbol(symbol) -> int:
 
 
 def update_quantity_according_lot_size_filter(symbol, quantity) -> str:
-    """ 
+    """
         Update the quantity, make sure it fits in the api restrictions.
 
         restriction 1 -> quantity % step_size == 0
         restriction 2 -> quantity must have maximum `precision` decimal points
     """
-    response = requests.get(f'{constants.BASE_ENDPOINT}/api/v3/exchangeInfo')
+    response = requests.get(f'{trader.constants.BASE_ENDPOINT}/api/v3/exchangeInfo')
     response_dict = response.json()
     for info in response_dict['symbols']:
         if info['symbol'] == symbol:
             filters = info['filters']
-            for filter in filters:
-                if filter['filterType'] == 'LOT_SIZE':
-                    step_size = float(filter['stepSize'])
+            for current_filter in filters:
+                if current_filter['filterType'] == 'LOT_SIZE':
+                    step_size = float(current_filter['stepSize'])
                     step_size_str = decimal.Context().create_decimal(repr(step_size))
                     step_size_str = format(step_size_str, 'f')
                     # Avoid doing this (even though the logic is correct for all scenarios)
@@ -74,7 +76,7 @@ def value_to_decimal(value, decimal_places):
 
 def get_24h_statistics(symbol):
 
-    url = f'{constants.BASE_ENDPOINT}/api/v3/ticker/24hr?symbol={symbol}'
+    url = f'{trader.constants.BASE_ENDPOINT}/api/v3/ticker/24hr?symbol={symbol}'
     response = requests.get(url)
 
     if response.status_code != 200:
@@ -91,7 +93,7 @@ def get_24hr_price_change_percent(symbol) -> float:
 
 
 def get_server_timestamp() -> int:    
-    response = requests.get(f'{constants.BASE_ENDPOINT}/api/v3/time')
+    response = requests.get(f'{trader.constants.BASE_ENDPOINT}/api/v3/time')
 
     if response.status_code != 200:
         raise Exception('Failed while fetching server time')
@@ -114,12 +116,12 @@ def get_klines_data(symbol, interval, limit = 1000):
     if limit <= 0:
         raise Exception(f'limit must be a positive integer, it was {limit}')
 
-    target_url = f'{constants.BASE_ENDPOINT}/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}'
+    target_url = f'{trader.constants.BASE_ENDPOINT}/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}'
 
     response = requests.get(target_url)
 
     if response.status_code != 200:
-        raise Exception(f'Failed while fetching klines data')
+        raise Exception('Failed while fetching klines data')
     
     return response.json()
 
@@ -133,65 +135,11 @@ def get_average_close_ratio(symbol, interval, limit) -> float:
 
     return total_close_values / len(klines) 
 
-def get_rsi(symbol, time_frame, moving_average = 0, data_count = 14) -> float:
-    """
-        Returns Relative Strength Index
-
-        moving_average
-            0 - SMA (Simple Moving Average)
-            1 - EMA (Exponential Moving Average)
-    """
-
-    # Fetch <data_count + 1> days to calculate the change on <data_count> days
-    klines = get_klines_data(symbol, time_frame, data_count + 1)
-
-    change_up = []
-    change_down = []
-
-    if len(klines) == 0:
-        return 0
-
-    for index in range(1, len(klines)):
-
-        current_close = float(klines[index][4])
-        prev_close = float(klines[index - 1][4])
-
-        diff = current_close - prev_close
-
-        if diff > 0:
-            change_up.append(diff)
-            change_down.append(0)
-        else:
-            change_down.append(-diff)
-            change_up.append(0)
-
-    up_avg = sum(change_up) / len(change_up)
-    down_avg = sum(change_down) / len(change_down)
-
-    if moving_average == 0:
-        rs = up_avg / down_avg 
-        return 100 - (100 / (1 + rs))
-
-    elif moving_average == 1:
-        a = 2 / ( data_count + 1 )
-        for index in range(0, len(change_up)):
-            up_avg = a * change_up[index] + (1 - a) * up_avg 
-
-        for index in range(0, len(change_down)):
-            down_avg = a * change_down[index] + (1 - a) * down_avg 
-
-        rs = up_avg / down_avg 
-        rsi = 100 - (100 / ( 1 + rs))
-        return rsi
-    
-    else:
-        raise Exception(f'<{moving_average}> is not valid for moving average parameter')
-
 def log(filename, message, dump_to_console):
     date = datetime.datetime.now()
-    log = f'{date} - {message}'
+    log_message = f'{date} - {message}'
     with open(filename, 'a') as log_file:
-        log_file.write(f'{log}\n')
+        log_file.write(f'{log_message}\n')
     if dump_to_console:
         print(message)
 
