@@ -1,3 +1,15 @@
+"""
+    Indicator functions
+
+    NOTE: if more indicator functions will be implemented using other 
+    platforms than binance, this script should be refactored 
+    and another indicator.py file should be added to 
+    binance folder and other desired platform folders
+    
+    in that case, the functions in this file should only
+    accept klines data (and other independent parameters),
+    not symbol, interval etc.
+"""
 import trader.binance.helper
 
 

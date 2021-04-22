@@ -135,13 +135,3 @@ def get_average_close_ratio(symbol, interval, limit) -> float:
 
     return total_close_values / len(klines) 
 
-def log(filename, message, dump_to_console):
-    date = datetime.datetime.now()
-    log_message = f'{date} - {message}'
-    with open(filename, 'a') as log_file:
-        log_file.write(f'{log_message}\n')
-    if dump_to_console:
-        print(message)
-
-def error_log(filename, message, dump_to_console):
-    log(filename, message, dump_to_console)
