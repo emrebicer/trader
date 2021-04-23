@@ -95,3 +95,33 @@ def get_bollinger_bands(symbol, interval, data_count = 20) -> (float, float, flo
 
     return (upper_bollinger_band, middle_bollinger_band, lower_bollinger_band)
 
+def get_sma(symbol, interval, data_count = 9) -> float:
+    """
+        Returns simple moving average
+    """
+    klines = trader.binance.helper.get_klines_data(symbol, interval, data_count)
+    closes = []
+
+    for kline in klines:
+        closes.append(float(kline[4]))
+    
+    return sum(closes) / len(closes)
+
+def get_ema(symbol, interval, data_count = 9) -> float:
+    """
+        Returns exponential moving average
+    """
+    klines = trader.binance.helper.get_klines_data(symbol, interval, data_count)
+    closes = []
+
+    for kline in klines:
+        closes.append(float(kline[4]))
+    
+    # First EMA is calculated as simple moving average of given close points
+    ema = get_sma(symbol, interval, data_count * 4)
+    a = 2 / ( len(closes) + 1 )
+
+    for index in range(1, len(closes)):
+        ema = a * closes[index] + (1 - a) * ema
+
+    return ema
