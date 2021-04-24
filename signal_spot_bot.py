@@ -12,6 +12,8 @@ import trader.indicators
 # Keep track of the individual config files
 master_config_files = []
 
+BUY_SIGNAL_PERCENT = 100
+SELL_SIGNAL_PERCENT = 80 
 
 def update_and_save_config_file(config_instance):
     instance_symbol = config_instance['base_currency'] + config_instance['target_currency']
@@ -87,7 +89,8 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
         buy_signal += 1
 
     if buy_on_next_trade:
-        if total_indicator_count == buy_signal:
+        current_buy_signal_percent = 100 * buy_signal / total_indicator_count
+        if current_buy_signal_percent >= BUY_SIGNAL_PERCENT:
             target_amount = trade_amount_buy
             quantity = target_amount / current_price
             result = trader.binance.trade.create_market_order(api_key, secret_key, symbol, 'BUY', quantity)
@@ -101,7 +104,8 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             trader.ssb.helper.log(f'Bought {quantity} {base_currency} for {target_amount} '
                 f'{target_currency} ( {symbol} -> {current_price} )', print_out)
     else:
-        if total_indicator_count == sell_signal:
+        current_sell_signal_percent = 100 * sell_signal / total_indicator_count
+        if current_sell_signal_percent >= SELL_SIGNAL_PERCENT:
             if prevent_loss and last_operation_price > current_price:
                 print(f'Won\'t sell {base_currency} to prevent loss')
             else:
