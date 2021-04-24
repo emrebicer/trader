@@ -138,8 +138,8 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
         difference_in_percent = 100 * (current_price - last_operation_price) / last_operation_price
         print(f'{owned_asset}\t{asset_state}\t{symbol} \tcp -> {format(current_price, ".3f")}'
             f'{target_currency}\tlop -> {format(last_operation_price, ".3f")} {target_currency}'
-            f'\tdif -> {format(difference_in_percent, ".3f")}% | SIGNALS -> {buy_signal}B / '
-            f'{sell_signal}S / {total_indicator_count}I')
+            f'\tdif -> {format(difference_in_percent, ".3f")}% | SIGNALS ({total_indicator_count}I)'
+            f' -> {buy_signal * "💸"} {sell_signal * "🔔"}')
 
 
 def get_time_stamp():
