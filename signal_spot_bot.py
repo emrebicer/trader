@@ -41,11 +41,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
     prevent_loss = config['prevent_loss']
 
     symbol = base_currency + target_currency
-    try:
-        current_price = trader.binance.trade.get_current_trade_ratio(symbol)
-    except requests.ConnectionError as ex:
-        trader.ssb.helper.error_log(f'Failed while fetching the current price for {symbol}, {ex}', print_out)
-        return
+    current_price = trader.binance.trade.get_current_trade_ratio(symbol)
 
     total_indicator_count = 5
     # Check the indicator signals
@@ -196,7 +192,12 @@ if __name__ == '__main__':
     while True:
         for current_config in master_config_files:
             if current_config['enabled']:
-                perform_bot_operations(current_config, api_key, secret_key, print_out) 
+                try:
+                    perform_bot_operations(current_config, api_key, secret_key, print_out) 
+                except Exception as ex:
+                    smybol = current_config['base_currency'] + current_config['target_currency']
+                    trader.ssb.helper.error_log(f'Error at perform_bot_operations for: {symbol},'
+                        f'Exception message: {ex}', print_out)
         if print_out:
             print('-' * 122)
         time.sleep(5)

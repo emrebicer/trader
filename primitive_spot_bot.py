@@ -33,11 +33,7 @@ def update_and_save_config_file(config_instance):
 def perform_bot_operations(config, api_key, secret_key, print_out):
     
     symbol = config['base_currency'] + config['target_currency'] 
-    try:
-        current_price = trader.binance.trade.get_current_trade_ratio(symbol)
-    except requests.ConnectionError as ex:
-        trader.psb.helper.error_log(f'Failed while fetching the current price for {symbol}, {ex}', print_out)
-        return
+    current_price = trader.binance.trade.get_current_trade_ratio(symbol)
 
     base_currency = config['base_currency']
     target_currency = config['target_currency']
@@ -241,7 +237,12 @@ if __name__ == '__main__':
     while True:
         for current_config in master_config_files:
             if current_config['enabled']:
-                perform_bot_operations(current_config, api_key, secret_key, print_out) 
+                try:
+                    perform_bot_operations(current_config, api_key, secret_key, print_out) 
+                except Exception as ex:
+                    smybol = current_config['base_currency'] + current_config['target_currency']
+                    trader.psb.helper.error_log(f'Error at perform_bot_operations for: {symbol},'
+                        f'Exception message: {ex}', print_out)
         if print_out:
             print('-' * 115)
         time.sleep(5)
