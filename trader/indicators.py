@@ -1,7 +1,7 @@
 import trader.binance.helper
 
 
-def get_rsi(data_points, interval, moving_average = 0) -> float:
+def get_rsi(data_points, moving_average = 0) -> float:
     """
         Returns Relative Strength Index
 

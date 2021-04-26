@@ -5,7 +5,7 @@ def get_close_data(symbol, interval, data_count) -> list:
     """
         Returns a list of floats
     """
-    klines = trader.binance.helper.get_klines_data(symbol, interval, data_count + 1)
+    klines = trader.binance.helper.get_klines_data(symbol, interval, int(data_count) + 1)
     
     close_data = []
     for data_point in klines:
