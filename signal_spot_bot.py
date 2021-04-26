@@ -6,8 +6,8 @@ import trader.constants
 import trader.binance.helper
 import trader.binance.trade
 import trader.binance.account
+import trader.binance.indicators
 import trader.ssb.helper
-import trader.indicators
 
 # Keep track of the individual config files
 master_config_files = []
@@ -50,35 +50,35 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
 
     # RSI indicator
     rsi_margin = 4.0
-    rsi = trader.indicators.get_rsi(symbol, '4h', moving_average=0, data_count=14)
+    rsi = trader.binance.indicators.get_rsi(symbol, '4h', moving_average=0, data_count=14)
     if rsi >= 70 - rsi_margin:
         sell_signal += 1
     elif rsi <= 30 + rsi_margin:
         buy_signal += 1
 
     # Bollinger bands indicator
-    (upper, _, lower) = trader.indicators.get_bollinger_bands(symbol, '4h', 20)
+    (upper, _, lower) = trader.binance.indicators.get_bollinger_bands(symbol, '4h', 20)
     if current_price > upper:
         sell_signal += 1
     elif current_price < lower:
         buy_signal += 1
 
     # Simple moving average
-    sma = trader.indicators.get_sma(symbol, '4h', 9)
+    sma = trader.binance.indicators.get_sma(symbol, '4h', 9)
     if current_price > sma:
         sell_signal += 1
     elif current_price < sma:
         buy_signal += 1
 
     # Exponential moving average (4h)
-    ema = trader.indicators.get_ema(symbol, '4h', 9)
+    ema = trader.binance.indicators.get_ema(symbol, '4h', 9)
     if current_price > ema:
         sell_signal += 1
     elif current_price < ema:
         buy_signal += 1
 
     # Exponential moving average (1d)
-    ema = trader.indicators.get_ema(symbol, '1d', 9)
+    ema = trader.binance.indicators.get_ema(symbol, '1d', 9)
     if current_price > ema:
         sell_signal += 1
     elif current_price < ema:
@@ -195,7 +195,7 @@ if __name__ == '__main__':
                 try:
                     perform_bot_operations(current_config, api_key, secret_key, print_out) 
                 except Exception as ex:
-                    smybol = current_config['base_currency'] + current_config['target_currency']
+                    symbol = current_config['base_currency'] + current_config['target_currency']
                     trader.ssb.helper.error_log(f'Error at perform_bot_operations for: {symbol},'
                         f'Exception message: {ex}', print_out)
         if print_out:

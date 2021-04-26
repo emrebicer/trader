@@ -240,7 +240,7 @@ if __name__ == '__main__':
                 try:
                     perform_bot_operations(current_config, api_key, secret_key, print_out) 
                 except Exception as ex:
-                    smybol = current_config['base_currency'] + current_config['target_currency']
+                    symbol = current_config['base_currency'] + current_config['target_currency']
                     trader.psb.helper.error_log(f'Error at perform_bot_operations for: {symbol},'
                         f'Exception message: {ex}', print_out)
         if print_out:

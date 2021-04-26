@@ -1,19 +1,7 @@
-"""
-    Indicator functions
-
-    NOTE: if more indicator functions will be implemented using other 
-    platforms than binance, this script should be refactored 
-    and another indicator.py file should be added to 
-    binance folder and other desired platform folders
-    
-    in that case, the functions in this file should only
-    accept klines data (and other independent parameters),
-    not symbol, interval etc.
-"""
 import trader.binance.helper
 
 
-def get_rsi(symbol, interval, moving_average = 0, data_count = 14) -> float:
+def get_rsi(data_points, interval, moving_average = 0) -> float:
     """
         Returns Relative Strength Index
 
@@ -22,19 +10,16 @@ def get_rsi(symbol, interval, moving_average = 0, data_count = 14) -> float:
             1 - EMA (Exponential Moving Average)
     """
 
-    # Fetch <data_count + 1> days to calculate the change on <data_count> days
-    klines = trader.binance.helper.get_klines_data(symbol, interval, data_count + 1)
-
     change_up = []
     change_down = []
 
-    if len(klines) == 0:
+    if len(data_points) == 0:
         return 0
 
-    for index in range(1, len(klines)):
+    for index in range(1, len(data_points)):
 
-        current_close = float(klines[index][4])
-        prev_close = float(klines[index - 1][4])
+        current_close = data_points[index]
+        prev_close = data_points[index - 1]
 
         diff = current_close - prev_close
 
@@ -44,6 +29,11 @@ def get_rsi(symbol, interval, moving_average = 0, data_count = 14) -> float:
         else:
             change_down.append(-diff)
             change_up.append(0)
+    
+    if len(change_up) == 0:
+        return 0
+    elif len(change_down) == 0:
+        return 100
 
     up_avg = sum(change_up) / len(change_up)
     down_avg = sum(change_down) / len(change_down)
@@ -53,7 +43,7 @@ def get_rsi(symbol, interval, moving_average = 0, data_count = 14) -> float:
         return 100 - (100 / (1 + rs))
 
     elif moving_average == 1:
-        a = 2 / ( data_count + 1 )
+        a = 2 / ( len(data_points) + 1 )
         for index in range(0, len(change_up)):
             up_avg = a * change_up[index] + (1 - a) * up_avg 
 
@@ -67,26 +57,19 @@ def get_rsi(symbol, interval, moving_average = 0, data_count = 14) -> float:
     else:
         raise Exception(f'<{moving_average}> is not valid for moving average parameter')
 
-def get_bollinger_bands(symbol, interval, data_count = 20) -> (float, float, float):
+def get_bollinger_bands(data_points) -> (float, float, float):
     """
         Returns (upper, middle, lower) bollinger bands
     """
 
-    klines = trader.binance.helper.get_klines_data(symbol, interval, data_count)
-
-    closes = []
-
-    for kline in klines:
-        closes.append(float(kline[4]))
-
-    close_average = sum(closes) / len(closes)
+    close_average = sum(data_points) / len(data_points)
 
     squared_total = 0.0
-    for close in closes:
-        diff = close_average - close
+    for data_point in data_points:
+        diff = close_average - data_point 
         squared_total += diff * diff
 
-    average_squared_total = squared_total / len(closes) 
+    average_squared_total = squared_total / len(data_points) 
     deviation = average_squared_total ** (1 / 2)
 
     upper_bollinger_band = close_average + (2 * deviation)
@@ -95,33 +78,23 @@ def get_bollinger_bands(symbol, interval, data_count = 20) -> (float, float, flo
 
     return (upper_bollinger_band, middle_bollinger_band, lower_bollinger_band)
 
-def get_sma(symbol, interval, data_count = 9) -> float:
+def get_sma(data_points) -> float:
     """
         Returns simple moving average
     """
-    klines = trader.binance.helper.get_klines_data(symbol, interval, data_count)
-    closes = []
-
-    for kline in klines:
-        closes.append(float(kline[4]))
     
-    return sum(closes) / len(closes)
+    return sum(data_points) / len(data_points)
 
-def get_ema(symbol, interval, data_count = 9) -> float:
+def get_ema(data_points) -> float:
     """
         Returns exponential moving average
     """
-    klines = trader.binance.helper.get_klines_data(symbol, interval, data_count)
-    closes = []
-
-    for kline in klines:
-        closes.append(float(kline[4]))
     
     # First EMA is calculated as simple moving average of given close points
-    ema = get_sma(symbol, interval, data_count * 4)
-    a = 2 / ( len(closes) + 1 )
+    ema = get_sma(data_points)
+    a = 2 / ( len(data_points) + 1 )
 
-    for index in range(1, len(closes)):
-        ema = a * closes[index] + (1 - a) * ema
+    for index in range(1, len(data_points)):
+        ema = a * data_points[index] + (1 - a) * ema
 
     return ema
