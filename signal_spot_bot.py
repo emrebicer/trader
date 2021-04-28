@@ -14,6 +14,9 @@ master_config_files = []
 BUY_SIGNAL_PERCENT = 100
 SELL_SIGNAL_PERCENT = 80 
 
+BUY_SIGNAL_EMOJI = '💸'
+SELL_SIGNAL_EMOJI = '🔔'
+
 def update_and_save_config_file(config_instance):
     instance_symbol = config_instance['base_currency'] + config_instance['target_currency']
 
@@ -43,6 +46,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
     current_price = trader.binance.trade.get_current_trade_ratio(symbol)
 
     total_indicator_count = 5
+    indicator_log = []
     # Check the indicator signals
     buy_signal = 0
     sell_signal = 0
@@ -52,37 +56,47 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
     rsi = trader.binance.indicators.get_rsi(symbol, '4h', moving_average=0, data_count=14)
     if rsi >= 70 - rsi_margin:
         sell_signal += 1
+        indicator_log.append(f'rsi {SELL_SIGNAL_EMOJI}')
     elif rsi <= 30 + rsi_margin:
         buy_signal += 1
+        indicator_log.append(f'rsi {BUY_SIGNAL_EMOJI}')
 
     # Bollinger bands indicator
     (upper, _, lower) = trader.binance.indicators.get_bollinger_bands(symbol, '4h', 20)
 
     if current_price > upper:
         sell_signal += 1
+        indicator_log.append(f'bollinger {SELL_SIGNAL_EMOJI}')
     elif current_price < lower:
         buy_signal += 1
+        indicator_log.append(f'bollinger {BUY_SIGNAL_EMOJI}')
 
     # Simple moving average
     sma = trader.binance.indicators.get_sma(symbol, '4h', 9)
     if current_price > sma:
         sell_signal += 1
+        indicator_log.append(f'sma {SELL_SIGNAL_EMOJI}')
     elif current_price < sma:
         buy_signal += 1
+        indicator_log.append(f'sma {BUY_SIGNAL_EMOJI}')
 
     # Exponential moving average (4h)
     ema = trader.binance.indicators.get_ema(symbol, '4h', 9)
     if current_price > ema:
         sell_signal += 1
+        indicator_log.append(f'ema4h {SELL_SIGNAL_EMOJI}')
     elif current_price < ema:
         buy_signal += 1
+        indicator_log.append(f'ema4h {BUY_SIGNAL_EMOJI}')
 
     # Exponential moving average (1d)
     ema = trader.binance.indicators.get_ema(symbol, '1d', 9)
     if current_price > ema:
         sell_signal += 1
+        indicator_log.append(f'ema1d {SELL_SIGNAL_EMOJI}')
     elif current_price < ema:
         buy_signal += 1
+        indicator_log.append(f'ema1d {BUY_SIGNAL_EMOJI}')
 
     if buy_on_next_trade:
         current_buy_signal_percent = 100 * buy_signal / total_indicator_count
@@ -138,8 +152,8 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
         difference_in_percent = 100 * (current_price - last_operation_price) / last_operation_price
         print(f'{owned_asset}\t{asset_state}\t{symbol} \tcp -> {format(current_price, ".3f")}'
             f'{target_currency}\tlop -> {format(last_operation_price, ".3f")} {target_currency}'
-            f'\tdif -> {format(difference_in_percent, ".3f")}% | SIGNALS ({total_indicator_count}I)'
-            f' -> {buy_signal * "💸"} {sell_signal * "🔔"}')
+            f'\tdif -> {format(difference_in_percent, ".3f")}%')
+        print(f'SIGNALS ({total_indicator_count}I) -> {" | ".join(indicator_log)}')
 
 
 def get_time_stamp():
@@ -199,5 +213,5 @@ if __name__ == '__main__':
                     trader.ssb.helper.error_log(f'Error at perform_bot_operations for: {symbol},'
                         f'Exception message: {ex}', print_out)
         if print_out:
-            print('-' * 122)
+            print('-' * 95)
         time.sleep(5)
