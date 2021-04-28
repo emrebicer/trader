@@ -1,7 +1,6 @@
 import sys
 import json
 import time
-import requests
 import trader.constants
 import trader.binance.helper
 import trader.binance.trade

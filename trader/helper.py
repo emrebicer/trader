@@ -1,7 +1,6 @@
 import os
 import json
 import datetime
-import trader.constants
 
 
 def fill_empty_fields_with_default_config(current_config, default_config) -> dict:

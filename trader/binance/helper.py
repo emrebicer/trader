@@ -4,7 +4,6 @@
 import hmac
 import decimal
 import hashlib
-import datetime
 import requests
 import trader.constants
 

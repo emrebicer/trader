@@ -1,7 +1,6 @@
 import sys
 import json
 import time
-import requests
 import trader.constants
 import trader.binance.helper
 import trader.binance.trade
@@ -58,6 +57,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
 
     # Bollinger bands indicator
     (upper, _, lower) = trader.binance.indicators.get_bollinger_bands(symbol, '4h', 20)
+
     if current_price > upper:
         sell_signal += 1
     elif current_price < lower:

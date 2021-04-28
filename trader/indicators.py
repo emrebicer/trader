@@ -1,5 +1,3 @@
-import trader.binance.helper
-
 
 def get_rsi(data_points, moving_average = 0) -> float:
     """
