@@ -1,7 +1,9 @@
 import sys
 import json
 import time
+import argparse
 import trader.constants
+import trader.helper
 import trader.binance.helper
 import trader.binance.trade
 import trader.binance.account
@@ -10,6 +12,9 @@ import trader.ssb.helper
 
 # Keep track of the individual config files
 master_config_files = []
+# Telegram user to be notified on buy or sell
+telegram_username = ''
+telegram_api_token = ''
 
 BUY_SIGNAL_PERCENT = 100
 SELL_SIGNAL_PERCENT = 80 
@@ -111,8 +116,12 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             config['buy_on_next_trade'] = False
             config['last_operation_price'] = current_price
             update_and_save_config_file(config)
-            trader.ssb.helper.log(f'Bought {quantity} {base_currency} for {target_amount} '
-                f'{target_currency} ( {symbol} -> {current_price} )', print_out)
+            log_str = f'Bought {quantity} {base_currency} for {target_amount} '\
+                f'{target_currency} ( {symbol} -> {current_price} )'
+            trader.ssb.helper.log(log_str, print_out)
+
+            if telegram_username != '' and telegram_api_token != '':
+                trader.helper.notify_on_telegram(telegram_api_token, telegram_username, log_str)
     else:
         current_sell_signal_percent = 100 * sell_signal / total_indicator_count
         if current_sell_signal_percent >= SELL_SIGNAL_PERCENT:
@@ -131,9 +140,13 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                 config['buy_on_next_trade'] = True
                 config['last_operation_price'] = current_price
                 update_and_save_config_file(config)
-                trader.ssb.helper.log(f'Sold {base_amount} {base_currency}'
-                    f'for {base_amount * current_price} {target_currency} '
-                    f'( {symbol} -> {current_price} )', print_out)
+                log_str = f'Sold {base_amount} {base_currency}'\
+                    f'for {base_amount * current_price} {target_currency} '\
+                    f'( {symbol} -> {current_price} )'
+                trader.ssb.helper.log(log_str, print_out)
+
+                if telegram_username != '' and telegram_api_token != '':
+                    trader.helper.notify_on_telegram(telegram_api_token, telegram_username, log_str)
 
     if print_out:
         owned_asset = '🚩' if not buy_on_next_trade else '✖'
@@ -161,13 +174,34 @@ def get_time_stamp():
 
 if __name__ == '__main__':
 
-    print_out = False if '--no-print' in sys.argv else True
+    parser = argparse.ArgumentParser(description = 'A bot that does cryptocurrency trading based on several indicator signals.')
+    parser.add_argument('-q',
+                        '--quite',
+                        help = 'An argument to enable/disable printing logs to the console.',
+                        action = 'store_true'
+                    )
+    parser.add_argument('-t',
+                        '--telegram',
+                        help = 'The telegram username that will be notified on buy or sell operations.',
+                        type = str,
+                        default = '',
+                    )
 
-    # Read the api key and api secret key
+    args = parser.parse_args()
+    print_out = False if args.quite else True
+    telegram_username = args.telegram
+
+    # Read the binance api key and api secret key
     with open(trader.constants.BINANCE_API_KEYS_FILE, 'r') as credentials_file:
         keys = json.loads(credentials_file.read())
         api_key = keys['api_key']
         secret_key = keys['secret_key']
+
+    if telegram_username != '':
+        # Read the telegram api token
+        with open(trader.constants.TELEGRAM_BOT_API_KEYS_FILE, 'r') as credentials_file:
+            keys = json.loads(credentials_file.read())
+            telegram_api_token = keys['api_token']
 
     # Default config values
     default_config = {
