@@ -68,3 +68,19 @@ docker build -t ssb .
 # Run container
 docker run -it -d -v "$(pwd):/app/" ssb
 ```
+### Notifications on Telegram (Optional)
+You can get notifications on telegram whenever the bot buys or sells an asset.
+In order to do so, you need to do the followings;
+- Create a bot on telegram (see https://core.telegram.org/bots)
+- Create a file called **telegram_bot_api_keys.json** at the root of the project and fill it with your **api_token**;
+``` json
+{
+    "api_token": "<your_telegram_api_token>"
+}
+```
+- Go to your telegram applicaton and send a message to the bot you just created
+- Finally, run the bot with the *--telegram <your_telegram_username>* flag;
+``` bash
+# e.g.
+python3 signal_spot_bot.py -t "your_telegram_username"
+```
