@@ -140,7 +140,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                 config['buy_on_next_trade'] = True
                 config['last_operation_price'] = current_price
                 update_and_save_config_file(config)
-                log_str = f'Sold {base_amount} {base_currency}'\
+                log_str = f'Sold {base_amount} {base_currency} '\
                     f'for {base_amount * current_price} {target_currency} '\
                     f'( {symbol} -> {current_price} )'
                 trader.ssb.helper.log(log_str, print_out)
