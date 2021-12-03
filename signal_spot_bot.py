@@ -13,7 +13,7 @@ import trader.ssb.helper
 # Keep track of the individual config files
 master_config_files = []
 # Telegram user to be notified on buy or sell
-telegram_username = ''
+telegram_chat_id = ''
 telegram_api_token = ''
 
 BUY_SIGNAL_PERCENT = 100
@@ -120,8 +120,8 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                 f'{target_currency} ( {symbol} -> {current_price} )'
             trader.ssb.helper.log(log_str, print_out)
 
-            if telegram_username != '' and telegram_api_token != '':
-                trader.helper.notify_on_telegram(telegram_api_token, telegram_username, log_str)
+            if telegram_chat_id != '' and telegram_api_token != '':
+                trader.helper.notify_on_telegram(telegram_api_token, telegram_chat_id, log_str)
     else:
         current_sell_signal_percent = 100 * sell_signal / total_indicator_count
         if current_sell_signal_percent >= SELL_SIGNAL_PERCENT:
@@ -145,8 +145,8 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                     f'( {symbol} -> {current_price} )'
                 trader.ssb.helper.log(log_str, print_out)
 
-                if telegram_username != '' and telegram_api_token != '':
-                    trader.helper.notify_on_telegram(telegram_api_token, telegram_username, log_str)
+                if telegram_chat_id != '' and telegram_api_token != '':
+                    trader.helper.notify_on_telegram(telegram_api_token, telegram_chat_id, log_str)
 
     if print_out:
         owned_asset = '🚩' if not buy_on_next_trade else '✖'
@@ -182,14 +182,14 @@ if __name__ == '__main__':
                     )
     parser.add_argument('-t',
                         '--telegram',
-                        help = 'The telegram username that will be notified on buy or sell operations.',
+                        help = 'The telegram chat_id that will be notified on buy or sell operations.',
                         type = str,
                         default = '',
                     )
 
     args = parser.parse_args()
     print_out = False if args.quite else True
-    telegram_username = args.telegram
+    telegram_chat_id = args.telegram
 
     # Read the binance api key and api secret key
     with open(trader.constants.BINANCE_API_KEYS_FILE, 'r') as credentials_file:
@@ -197,7 +197,7 @@ if __name__ == '__main__':
         api_key = keys['api_key']
         secret_key = keys['secret_key']
 
-    if telegram_username != '':
+    if telegram_chat_id != '':
         # Read the telegram api token
         with open(trader.constants.TELEGRAM_BOT_API_KEYS_FILE, 'r') as credentials_file:
             keys = json.loads(credentials_file.read())

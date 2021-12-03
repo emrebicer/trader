@@ -78,30 +78,11 @@ def log(filename, message, dump_to_console):
 def error_log(filename, message, dump_to_console):
     log(filename, message, dump_to_console)
 
-def notify_on_telegram(api_token, username, message):
+def notify_on_telegram(api_token, chat_id, message):
     """
-        Send the <message> to the <username> over telegram.
+        Send the <message> to the <chat_id> over telegram.
         You need to provide the <api_token> in order to access to the telegram api.
     """
-
-    # First get the chat_id for the given username
-    updates_response = requests.get(f'{trader.constants.TELEGRAM_BOT_API_BASE_ENDPOINT}{api_token}/getUpdates')
-    if updates_response.status_code != 200:
-        print(updates_response.json())
-        raise Exception('Failed to get updates -> notify_on_telegram')
-    updates = updates_response.json()
-
-    # Search for previous messages to see if the <username> texted us before
-    chat_id = ''
-    for result in updates['result']:
-        if result['message']['from']['username'] == username:
-            # Found a message from the given username
-            chat_id = result['message']['chat']['id']
-            break
-    
-    if chat_id == '':
-        # The user never texted the bot
-        raise Exception(f'The user <{username}>, never texted the bot, so can\'t find chat_id')
 
     # Send the message
     response = requests.get(f'{trader.constants.TELEGRAM_BOT_API_BASE_ENDPOINT}{api_token}/sendMessage'

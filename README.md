@@ -78,9 +78,8 @@ In order to do so, you need to do the followings;
     "api_token": "<your_telegram_api_token>"
 }
 ```
-- Go to your telegram applicaton and send a message to the bot you just created
-- Finally, run the bot with the *--telegram <your_telegram_username>* flag;
+- Finally, run the bot with the *--telegram <telegram_chat_id>* flag;
 ``` bash
 # e.g.
-python3 signal_spot_bot.py -t "your_telegram_username"
+python3 signal_spot_bot.py -t "your_telegram_chat_id"
 ```
