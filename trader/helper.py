@@ -87,8 +87,39 @@ def notify_on_telegram(api_token, chat_id, message):
     # Send the message
     response = requests.get(f'{trader.constants.TELEGRAM_BOT_API_BASE_ENDPOINT}{api_token}/sendMessage'
         f'?chat_id={chat_id}&text={message}')
+    
+    response_json = response.json()
     if response.status_code != 200:
-        print(response.json())
-        raise Exception('Failed to get -> notify_on_telegram')
+        print(response_json)
+        raise Exception(f'Failed to get -> notify_on_telegram, response:{response_json}')
 
-    return response.json()
+    return response_json
+
+def notify_on_discord(api_token, channel_id, message):
+    """
+        Send the <message> to the channel with <channel_id> over discord.
+        You need to provide the <api_token> in order to access to the discord api.
+    """
+
+    data = {
+        'embeds': [{
+            'title': 'A new trade! 💸',
+            'description': f'{message}'
+        }]
+    }
+
+    # Set the authorization header
+    headers = {
+        'Authorization': f'Bot {api_token}'
+    }
+
+    # Send the message
+    response = requests.post(f'{trader.constants.DISCORD_BOT_API_BASE_ENDPOINT}'
+        f'/channels/{channel_id}/messages', headers = headers, json = data)
+
+    response_json = response.json()
+    if response.status_code != 200:
+        print(response_json)
+        raise Exception(f'Failed to post-> discord_on_telegram, response:{response_json}')
+
+    return response_json

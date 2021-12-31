@@ -1,4 +1,3 @@
-import sys
 import json
 import time
 import argparse
@@ -15,6 +14,10 @@ master_config_files = []
 # Telegram user to be notified on buy or sell
 telegram_chat_id = ''
 telegram_api_token = ''
+
+# Discord channel to be notified on buy or sell
+discord_channel_id = ''
+discord_api_token = ''
 
 BUY_SIGNAL_PERCENT = 100
 SELL_SIGNAL_PERCENT = 80 
@@ -36,6 +39,12 @@ def update_and_save_config_file(config_instance):
             return
 
     raise Exception(f'The symbol {instance_symbol} was not found in the {master_config_files}')
+
+def is_telegram_enabled():
+    return telegram_chat_id != '' and telegram_api_token != ''
+
+def is_discord_enabled():
+    return discord_channel_id != '' and discord_api_token != ''
 
 def perform_bot_operations(config, api_key, secret_key, print_out):
 
@@ -120,8 +129,11 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                 f'{target_currency} ( {symbol} -> {current_price} )'
             trader.ssb.helper.log(log_str, print_out)
 
-            if telegram_chat_id != '' and telegram_api_token != '':
+            if is_telegram_enabled():
                 trader.helper.notify_on_telegram(telegram_api_token, telegram_chat_id, log_str)
+
+            if is_discord_enabled():
+                trader.helper.notify_on_discord(discord_api_token, discord_channel_id, log_str)
     else:
         current_sell_signal_percent = 100 * sell_signal / total_indicator_count
         if current_sell_signal_percent >= SELL_SIGNAL_PERCENT:
@@ -145,8 +157,11 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                     f'( {symbol} -> {current_price} )'
                 trader.ssb.helper.log(log_str, print_out)
 
-                if telegram_chat_id != '' and telegram_api_token != '':
+                if is_telegram_enabled():
                     trader.helper.notify_on_telegram(telegram_api_token, telegram_chat_id, log_str)
+
+                if is_discord_enabled():
+                    trader.helper.notify_on_discord(discord_api_token, discord_channel_id, log_str)
 
     if print_out:
         owned_asset = '🚩' if not buy_on_next_trade else '✖'
@@ -187,9 +202,17 @@ if __name__ == '__main__':
                         default = '',
                     )
 
+    parser.add_argument('-d',
+                        '--discord',
+                        help = 'The discord channel_id that will be notified on buy or sell operations.',
+                        type = str,
+                        default = '',
+                    )
+
     args = parser.parse_args()
     print_out = False if args.quite else True
     telegram_chat_id = args.telegram
+    discord_channel_id = args.discord
 
     # Read the binance api key and api secret key
     with open(trader.constants.BINANCE_API_KEYS_FILE, 'r') as credentials_file:
@@ -202,6 +225,12 @@ if __name__ == '__main__':
         with open(trader.constants.TELEGRAM_BOT_API_KEYS_FILE, 'r') as credentials_file:
             keys = json.loads(credentials_file.read())
             telegram_api_token = keys['api_token']
+
+    if discord_channel_id != '':
+        # Read the discord api token
+        with open(trader.constants.DISCORD_BOT_API_KEYS_FILE, 'r') as credentials_file:
+            keys = json.loads(credentials_file.read())
+            discord_api_token = keys['api_token']
 
     # Default config values
     default_config = {
