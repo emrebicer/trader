@@ -83,3 +83,21 @@ In order to do so, you need to do the followings;
 # e.g.
 python3 signal_spot_bot.py -t "your_telegram_chat_id"
 ```
+
+### Notifications on Discord (Optional)
+You can get notifications on a discord channel whenever the bot buys or sells an asset.
+In order to do so, you need to do the followings;
+- Create a bot on discord (see https://discord.com/developers/applications)
+- Invite the bot to your discord server
+- Create a file called **discord_bot_api_keys.json** at the root of the project and fill it with your **api_token**;
+``` json
+{
+    "api_token": "<your_discord_api_token>"
+}
+```
+- Finally, run the bot with the *--discord <discord_channel_id>* flag;
+``` bash
+# e.g.
+python3 signal_spot_bot.py -d "your_discord_channel_id"
+```
+
