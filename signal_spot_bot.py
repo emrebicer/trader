@@ -176,28 +176,31 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                     trader.helper.notify_on_discord(discord_api_token, discord_channel_id, log_str)
 
     if print_out:
-        owned_asset = '🚩' if not buy_on_next_trade else '✖'
+        owned_asset = '🚩 true' if not buy_on_next_trade else '➖ false'
 
         if buy_on_next_trade:
             if buy_signal > sell_signal:
-                asset_state = '🔼'
+                is_in_favor = '🔼 true'
             else:
-                asset_state = '🔻'
+                is_in_favor = '🔻 false'
         else:
             if sell_signal > buy_signal:
-                asset_state = '🔼'
+                is_in_favor = '🔼 true'
             else:
-                asset_state = '🔻'
+                is_in_favor = '🔻 false'
 
         difference_in_percent = 100 * (current_price - last_operation_price) / last_operation_price
-        print(f'{owned_asset}\t{asset_state}\t{symbol} \tcp -> {format(current_price, ".3f")}'
-            f'{target_currency}\tlop -> {format(last_operation_price, ".3f")} {target_currency}'
-            f'\tdif -> {format(difference_in_percent, ".3f")}%')
-        print(f'SIGNALS ({total_indicator_count}I) -> {" | ".join(indicator_log)}')
-
+        print ('{:<12} {:<12} {:<16} {:<20} {:<24} {:<12} {:<10}'.format(owned_asset, symbol, is_in_favor,
+         f'{format(current_price, ".3f")} {target_currency}', f'{format(last_operation_price, ".3f")} {target_currency}',
+         f'{format(difference_in_percent, ".3f")}%',
+         f'{buy_signal}B {sell_signal}S {BUY_SIGNAL_EMOJI * buy_signal}{SELL_SIGNAL_EMOJI * sell_signal}'))
 
 def get_time_stamp():
     return time.time()
+
+def print_headers():
+    print ('{:<12} {:<12} {:<16} {:<20} {:<24} {:<12} {:<10}'.format('👾 Owned', 'Symbol',
+        '📈 In Favor', 'Current Price', 'Last Operation Price', 'Difference', 'Indicator Signals'))
 
 if __name__ == '__main__':
 
@@ -279,6 +282,8 @@ if __name__ == '__main__':
         print(f'Starting the bot with this config:\n\n{json.dumps(master_config_files, indent=4)}\n')
 
     while True:
+        if print_out:
+            print_headers()
         for current_config in master_config_files:
             if current_config['enabled']:
                 try:
@@ -288,5 +293,5 @@ if __name__ == '__main__':
                     trader.ssb.helper.error_log(f'Error at perform_bot_operations for: {symbol},'
                         f'Exception message: {ex}', print_out)
         if print_out:
-            print('-' * 95)
+            print('-' * 120)
         time.sleep(5)
