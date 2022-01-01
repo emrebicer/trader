@@ -125,6 +125,12 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             config['buy_on_next_trade'] = False
             config['last_operation_price'] = current_price
             update_and_save_config_file(config)
+
+            if 'executedQty' in result.keys():
+                quantity = result['executedQty']
+            if 'cummulativeQuoteQty' in result.keys():
+                target_amount = result['cummulativeQuoteQty']
+
             log_str = f'Bought {quantity} {base_currency} for {target_amount} '\
                 f'{target_currency} ( {symbol} -> {current_price} )'
             trader.ssb.helper.log(log_str, print_out)
@@ -149,6 +155,12 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                 if result['status'] != 'FILLED':
                     print('Response status was not FILLED, won\'t update config...')
                     return
+
+                if 'executedQty' in result.keys():
+                    quantity = result['executedQty']
+                if 'cummulativeQuoteQty' in result.keys():
+                    target_amount = result['cummulativeQuoteQty']
+
                 config['buy_on_next_trade'] = True
                 config['last_operation_price'] = current_price
                 update_and_save_config_file(config)
