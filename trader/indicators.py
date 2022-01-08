@@ -1,3 +1,4 @@
+from typing import Tuple
 
 def get_rsi(data_points, moving_average = 0) -> float:
     """
@@ -55,7 +56,7 @@ def get_rsi(data_points, moving_average = 0) -> float:
     else:
         raise Exception(f'<{moving_average}> is not valid for moving average parameter')
 
-def get_bollinger_bands(data_points) -> (float, float, float):
+def get_bollinger_bands(data_points) -> Tuple[float, float, float]:
     """
         Returns (upper, middle, lower) bollinger bands
     """

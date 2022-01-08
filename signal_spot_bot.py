@@ -1,12 +1,14 @@
+import argparse
 import json
 import time
-import argparse
+
+import trader.binance.account
+import trader.binance.helper
+import trader.binance.indicators
+import trader.binance.trade
 import trader.constants
 import trader.helper
-import trader.binance.helper
-import trader.binance.trade
-import trader.binance.account
-import trader.binance.indicators
+import trader.ssb.constants
 import trader.ssb.helper
 
 # Keep track of the individual config files
@@ -117,7 +119,13 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
         if current_buy_signal_percent >= BUY_SIGNAL_PERCENT:
             target_amount = trade_amount_buy
             quantity = target_amount / current_price
-            result = trader.binance.trade.create_market_order(api_key, secret_key, symbol, 'BUY', quantity)
+            result = trader.binance.trade.create_market_order(
+                api_key,
+                secret_key,
+                symbol,
+                'BUY',
+                quantity
+            )
             print(result)
             if result['status'] != 'FILLED':
                 print('Response status was not FILLED, won\'t update config...')
@@ -136,10 +144,18 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
             trader.ssb.helper.log(log_str, print_out)
 
             if is_telegram_enabled():
-                trader.helper.notify_on_telegram(telegram_api_token, telegram_chat_id, log_str)
+                trader.helper.notify_on_telegram(
+                    telegram_api_token,
+                    telegram_chat_id,
+                    log_str
+                )
 
             if is_discord_enabled():
-                trader.helper.notify_on_discord(discord_api_token, discord_channel_id, log_str)
+                trader.helper.notify_on_discord(
+                    discord_api_token,
+                    discord_channel_id,
+                    log_str
+                )
     else:
         current_sell_signal_percent = 100 * sell_signal / total_indicator_count
         if current_sell_signal_percent >= SELL_SIGNAL_PERCENT:
@@ -147,10 +163,20 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                 print(f'Won\'t sell {base_currency} to prevent loss')
             else:
                 # Create sell order
-                base_amount = trader.binance.account.get_free_balance_amount(api_key, secret_key, base_currency)
+                base_amount = trader.binance.account.get_free_balance_amount(
+                    api_key,
+                    secret_key,
+                    base_currency
+                )
                 # Calculate total amount that we can trade
                 base_amount = base_amount * trade_wealth_percent_sell / 100
-                result = trader.binance.trade.create_market_order(api_key, secret_key, symbol, 'SELL', base_amount)
+                result = trader.binance.trade.create_market_order(
+                    api_key,
+                    secret_key,
+                    symbol,
+                    'SELL',
+                    base_amount
+                )
                 print(result)
                 if result['status'] != 'FILLED':
                     print('Response status was not FILLED, won\'t update config...')
@@ -158,22 +184,48 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
 
                 if 'executedQty' in result.keys():
                     quantity = result['executedQty']
+                else:
+                    quantity = base_amount
                 if 'cummulativeQuoteQty' in result.keys():
                     target_amount = result['cummulativeQuoteQty']
+                else:
+                    target_amount = quantity * current_price
 
                 config['buy_on_next_trade'] = True
                 config['last_operation_price'] = current_price
                 update_and_save_config_file(config)
-                log_str = f'Sold {base_amount} {base_currency} '\
-                    f'for {base_amount * current_price} {target_currency} '\
+                log_str = f'Sold {quantity} {base_currency} '\
+                    f'for {target_amount} {target_currency} '\
                     f'( {symbol} -> {current_price} )'
                 trader.ssb.helper.log(log_str, print_out)
 
-                if is_telegram_enabled():
-                    trader.helper.notify_on_telegram(telegram_api_token, telegram_chat_id, log_str)
+                if is_telegram_enabled() or is_discord_enabled():
+                    try:
+                        profit_text = get_sell_profit_text(
+                            base_currency,
+                            target_amount,
+                            target_amount
+                        )
+                    except Exception as ex:
+                        trader.ssb.helper.error_log(f'Error at get_sell_profit_text,'
+                            f'Exception message: {ex}', print_out)
+                        profit_text = ''
 
-                if is_discord_enabled():
-                    trader.helper.notify_on_discord(discord_api_token, discord_channel_id, log_str)
+                    notification_str = f'{log_str} {profit_text}'
+
+                    if is_telegram_enabled():
+                        trader.helper.notify_on_telegram(
+                            telegram_api_token,
+                            telegram_chat_id,
+                            notification_str
+                         )
+
+                    if is_discord_enabled():
+                        trader.helper.notify_on_discord(
+                            discord_api_token,
+                            discord_channel_id,
+                            notification_str
+                        )
 
     if print_out:
         owned_asset = '🚩 true' if not buy_on_next_trade else '➖ false'
@@ -194,6 +246,30 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
          f'{format(current_price, ".3f")} {target_currency}', f'{format(last_operation_price, ".3f")} {target_currency}',
          f'{format(difference_in_percent, ".3f")}%',
          f'{buy_signal}B {sell_signal}S {BUY_SIGNAL_EMOJI * buy_signal}{SELL_SIGNAL_EMOJI * sell_signal}'))
+
+def get_sell_profit_text(base_currency, target_currency, target_amount) -> str:
+    symbol = base_currency + target_currency
+    difference = calculate_sell_profit(symbol, target_amount)
+    if difference == 0:
+        return ""
+
+    if difference > 0:
+        return f'(Profit: {difference} {target_currency})'
+    else:
+        return f'(Loss: {difference} {target_currency})'
+
+
+def calculate_sell_profit(symbol, target_amount) -> float:
+    # Get the latest bought log for <symbol>
+    with open(trader.ssb.constants.LOG_FILE, 'r') as log_file:
+        logs = [log for log in log_file.readlines() if symbol in log and 'Bought' in log]
+        if len(logs) == 0:
+            return 0.0
+
+        last_bought_log = logs[-1]
+        last_bought_target_quantity = float(last_bought_log.split(' ')[4])
+        target_amount = float(target_amount)
+        return target_amount - last_bought_target_quantity
 
 def get_time_stamp():
     return time.time()

@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import trader.binance.helper
 import trader.indicators
 
@@ -27,7 +29,7 @@ def get_rsi(symbol, interval, moving_average = 0, data_count = 14) -> float:
     return trader.indicators.get_rsi(close_data, moving_average)
 
 
-def get_bollinger_bands(symbol, interval, data_count = 20) -> (float, float, float):
+def get_bollinger_bands(symbol, interval, data_count = 20) -> Tuple[float, float, float]:
     """
         Returns (upper, middle, lower) bollinger bands
     """
