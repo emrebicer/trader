@@ -21,6 +21,10 @@ telegram_api_token = ''
 discord_channel_id = ''
 discord_api_token = ''
 
+# If prevent_loss is enabled,
+# make sure the profit is at least <MIN_PROFIT_PERCENT>
+MIN_PROFIT_PERCENT = 2
+
 BUY_SIGNAL_PERCENT = 100
 SELL_SIGNAL_PERCENT = 80 
 
@@ -159,7 +163,12 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
     else:
         current_sell_signal_percent = 100 * sell_signal / total_indicator_count
         if current_sell_signal_percent >= SELL_SIGNAL_PERCENT:
-            if prevent_loss and last_operation_price > current_price:
+            # If prevent_loss is enabled,
+            # make sure the profit is at least <MIN_PROFIT_PERCENT>
+            if (prevent_loss and
+                (last_operation_price +
+                 (last_operation_price * MIN_PROFIT_PERCENT / 100))
+                    > current_price):
                 print(f'Won\'t sell {base_currency} to prevent loss')
             else:
                 # Create sell order
