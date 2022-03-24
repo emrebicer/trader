@@ -23,7 +23,7 @@ discord_api_token = ''
 
 # If prevent_loss is enabled,
 # make sure the profit is at least <MIN_PROFIT_PERCENT>
-MIN_PROFIT_PERCENT = 2
+MIN_PROFIT_PERCENT = 8
 
 BUY_SIGNAL_PERCENT = 100
 SELL_SIGNAL_PERCENT = 80 
