@@ -23,7 +23,7 @@ discord_api_token = ''
 
 # If prevent_loss is enabled,
 # make sure the profit is at least <MIN_PROFIT_PERCENT>
-MIN_PROFIT_PERCENT = 8
+MIN_PROFIT_PERCENT = 6
 
 BUY_SIGNAL_PERCENT = 100
 SELL_SIGNAL_PERCENT = 80 
@@ -212,7 +212,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                     try:
                         profit_text = get_sell_profit_text(
                             base_currency,
-                            target_amount,
+                            target_currency,
                             target_amount
                         )
                     except Exception as ex:
