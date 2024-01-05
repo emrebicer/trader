@@ -1,0 +1,14 @@
+__pycache__
+
+binance_api_keys.json
+
+config_signal_spot_bot.json
+log_signal_spot_bot.txt
+error_log_signal_spot_bot.txt
+
+log_primitive_spot_bot.txt
+error_log_primitive_spot_bot.txt
+config_primitive_spot_bot.json
+
+telegram_bot_api_keys.json
+discord_bot_api_keys.json
