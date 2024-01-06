@@ -3,12 +3,8 @@ This project aims to make a profit by trading cryptocurrencies automatically. Th
 
 ***Please Note***: I am not experienced OR educated within the field of finance, and this project was started as a hobby. So, unfortunately, these pre-written bots can't guarantee profit and even make you lose money. Please use it at your own risk.
 
-
-## Primitive spot bot
-This was the initial bot that I came up with, to be honest, it is so risky and I don't recommend it to be used... The idea was that, if an asset's value is steady and you are estimating that it won't increase or decrease a lot in the near future, we can make a profit by buying at small decreases and selling at small increases. The problem is that; the crypto market is so volatile. So most of the time we can't guarantee that the price won't spike up or down...
-
 ## Signal spot bot
-After spending some time within the crypto market, I have realized that the most logical way to estimate if the price will go higher or lower is to look at indicators. Thus, I have implemented several indicators: RSI, Bollinger bands, and moving average. By looking at these indicator results, I aim to have a strong prediction on the market price movement for the given asset, and according to this prediction, the bot will buy or sell the desired asset. This bot performs better compared to the primitive spot bot and it is more reliable, but unfortunately, it still can't guarantee profit for all times. But according to my experience, it performs well unless there is a big crash on the asset price.
+After spending some time within the crypto market, I have realized that the a logical way to estimate if the price will go higher or lower is to look at indicators. Thus, I have implemented several indicators: RSI, Bollinger bands, and moving average. By looking at these indicator results, I aim to have a strong prediction on the market price movement for the given asset, and according to this prediction, the bot will buy or sell the desired asset. Unfortunately in such a volatile market, it can't guarantee profits.
 
 ## Usage of the Signal spot bot
 - Create a file; **binance_api_keys.json** at the root of the project, and enter your binance api key and secret key.
