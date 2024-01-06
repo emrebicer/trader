@@ -56,9 +56,9 @@ default_config = {
     'prevent_loss': True, # If True never sell cheaper
 }
 ```
-- Lastly, you can use docker to run the bot or you can direcly run with python3. Only dependency is **requests**. So make sure you have requests package installed locally and then you can directly run **signal_spot_bot.py**.
+- Lastly, you can use docker to run the bot or you can direcly run with python3. Dependencies are **requests** and **rich** for the TUI. So make sure you have those packages installed locally and then you can directly run **signal_spot_bot.py**.
 ``` bash
-python3 -m pip install requests
+python3 -m pip install requests rich
 python3 signal_spot_bot.py
 ```
 - Or build a docker countainer and run the image;

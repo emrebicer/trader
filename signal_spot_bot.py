@@ -11,8 +11,11 @@ import trader.helper
 import trader.ssb.constants
 import trader.ssb.helper
 
+from tui.ssb_interface import TUI, LiveDataInfo
+
 # Keep track of the individual config files
 master_config_files = []
+
 # Telegram user to be notified on buy or sell
 telegram_chat_id = ''
 telegram_api_token = ''
@@ -30,6 +33,9 @@ SELL_SIGNAL_PERCENT = 80
 
 BUY_SIGNAL_EMOJI = '💸'
 SELL_SIGNAL_EMOJI = '🔔'
+
+# For syncing with the TUI
+live_data_points = {}
 
 def update_and_save_config_file(config_instance):
     instance_symbol = config_instance['base_currency'] + config_instance['target_currency']
@@ -52,7 +58,7 @@ def is_telegram_enabled():
 def is_discord_enabled():
     return discord_channel_id != '' and discord_api_token != ''
 
-def perform_bot_operations(config, api_key, secret_key, print_out):
+def perform_bot_operations(config, api_key, secret_key, tui):
 
     base_currency = config['base_currency']
     target_currency = config['target_currency']
@@ -66,7 +72,6 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
     current_price = trader.binance.trade.get_current_trade_ratio(symbol)
 
     total_indicator_count = 5
-    indicator_log = []
     # Check the indicator signals
     buy_signal = 0
     sell_signal = 0
@@ -76,47 +81,37 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
     rsi = trader.binance.indicators.get_rsi(symbol, '4h', moving_average=0, data_count=14)
     if rsi >= 70 - rsi_margin:
         sell_signal += 1
-        indicator_log.append(f'rsi {SELL_SIGNAL_EMOJI}')
     elif rsi <= 30 + rsi_margin:
         buy_signal += 1
-        indicator_log.append(f'rsi {BUY_SIGNAL_EMOJI}')
 
     # Bollinger bands indicator
     (upper, _, lower) = trader.binance.indicators.get_bollinger_bands(symbol, '4h', 20)
 
     if current_price > upper:
         sell_signal += 1
-        indicator_log.append(f'bollinger {SELL_SIGNAL_EMOJI}')
     elif current_price < lower:
         buy_signal += 1
-        indicator_log.append(f'bollinger {BUY_SIGNAL_EMOJI}')
 
     # Simple moving average
     sma = trader.binance.indicators.get_sma(symbol, '4h', 9)
     if current_price > sma:
         sell_signal += 1
-        indicator_log.append(f'sma {SELL_SIGNAL_EMOJI}')
     elif current_price < sma:
         buy_signal += 1
-        indicator_log.append(f'sma {BUY_SIGNAL_EMOJI}')
 
     # Exponential moving average (4h)
     ema = trader.binance.indicators.get_ema(symbol, '4h', 9)
     if current_price > ema:
         sell_signal += 1
-        indicator_log.append(f'ema4h {SELL_SIGNAL_EMOJI}')
     elif current_price < ema:
         buy_signal += 1
-        indicator_log.append(f'ema4h {BUY_SIGNAL_EMOJI}')
 
     # Exponential moving average (1d)
     ema = trader.binance.indicators.get_ema(symbol, '1d', 9)
     if current_price > ema:
         sell_signal += 1
-        indicator_log.append(f'ema1d {SELL_SIGNAL_EMOJI}')
     elif current_price < ema:
         buy_signal += 1
-        indicator_log.append(f'ema1d {BUY_SIGNAL_EMOJI}')
 
     if buy_on_next_trade:
         current_buy_signal_percent = 100 * buy_signal / total_indicator_count
@@ -130,10 +125,12 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                 'BUY',
                 quantity
             )
-            print(result)
             if result['status'] != 'FILLED':
-                print('Response status was not FILLED, won\'t update config...')
+                err_log = f"Response status was't FILLED, could't create BUY order for {symbol}"
+                trader.ssb.helper.error_log(err_log, False)
+                tui.program_log.add_log(err_log)
                 return
+
             config['buy_on_next_trade'] = False
             config['last_operation_price'] = current_price
             update_and_save_config_file(config)
@@ -145,7 +142,8 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
 
             log_str = f'Bought {quantity} {base_currency} for {target_amount} '\
                 f'{target_currency} ( {symbol} -> {current_price} )'
-            trader.ssb.helper.log(log_str, print_out)
+            trader.ssb.helper.log(log_str, False)
+            tui.transaction_log.add_log(log_str)
 
             if is_telegram_enabled():
                 trader.helper.notify_on_telegram(
@@ -165,12 +163,7 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
         if current_sell_signal_percent >= SELL_SIGNAL_PERCENT:
             # If prevent_loss is enabled,
             # make sure the profit is at least <MIN_PROFIT_PERCENT>
-            if (prevent_loss and
-                (last_operation_price +
-                 (last_operation_price * MIN_PROFIT_PERCENT / 100))
-                    > current_price):
-                print(f'Won\'t sell {base_currency} to prevent loss')
-            else:
+            if (not prevent_loss) or (prevent_loss and (current_price >= last_operation_price + (last_operation_price * MIN_PROFIT_PERCENT / 100))):
                 # Create sell order
                 base_amount = trader.binance.account.get_free_balance_amount(
                     api_key,
@@ -186,9 +179,11 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                     'SELL',
                     base_amount
                 )
-                print(result)
+
                 if result['status'] != 'FILLED':
-                    print('Response status was not FILLED, won\'t update config...')
+                    err_log = f"Response status was't FILLED, could't create SELL order for {symbol}"
+                    trader.ssb.helper.error_log(err_log, False)
+                    tui.program_log.add_log(err_log)
                     return
 
                 if 'executedQty' in result.keys():
@@ -206,7 +201,9 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                 log_str = f'Sold {quantity} {base_currency} '\
                     f'for {target_amount} {target_currency} '\
                     f'( {symbol} -> {current_price} )'
-                trader.ssb.helper.log(log_str, print_out)
+
+                trader.ssb.helper.log(log_str, False)
+                tui.transaction_log.add_log(log_str)
 
                 if is_telegram_enabled() or is_discord_enabled():
                     try:
@@ -216,8 +213,9 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                             target_amount
                         )
                     except Exception as ex:
-                        trader.ssb.helper.error_log(f'Error at get_sell_profit_text,'
-                            f'Exception message: {ex}', print_out)
+                        err_log = f'Error at get_sell_profit_text, Exception message: {ex}'
+                        trader.ssb.helper.error_log(err_log, False)
+                        tui.program_log.add_log(err_log)
                         profit_text = ''
 
                     notification_str = f'{log_str} {profit_text}'
@@ -236,25 +234,23 @@ def perform_bot_operations(config, api_key, secret_key, print_out):
                             notification_str
                         )
 
-    if print_out:
-        owned_asset = '🚩 true' if not buy_on_next_trade else '➖ false'
+    owned_asset = '🚩 true' if not buy_on_next_trade else '➖ false'
 
-        if buy_on_next_trade:
-            if buy_signal > sell_signal:
-                is_in_favor = '🔼 true'
-            else:
-                is_in_favor = '🔻 false'
+    if buy_on_next_trade:
+        if buy_signal > sell_signal:
+            is_in_favor = True
         else:
-            if sell_signal > buy_signal:
-                is_in_favor = '🔼 true'
-            else:
-                is_in_favor = '🔻 false'
+            is_in_favor = False
+    else:
+        if sell_signal > buy_signal:
+            is_in_favor = True
+        else:
+            is_in_favor = False
 
-        difference_in_percent = 100 * (current_price - last_operation_price) / last_operation_price
-        print ('{:<12} {:<12} {:<16} {:<20} {:<24} {:<12} {:<10}'.format(owned_asset, symbol, is_in_favor,
-         f'{format(current_price, ".3f")} {target_currency}', f'{format(last_operation_price, ".3f")} {target_currency}',
-         f'{format(difference_in_percent, ".3f")}%',
-         f'{buy_signal}B {sell_signal}S {BUY_SIGNAL_EMOJI * buy_signal}{SELL_SIGNAL_EMOJI * sell_signal}'))
+    difference_in_percent = 100 * (current_price - last_operation_price) / last_operation_price
+
+    live_data_points[f'{symbol}'] = LiveDataInfo(not buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, f'{buy_signal} Buy - {sell_signal} Sell {BUY_SIGNAL_EMOJI * buy_signal}{SELL_SIGNAL_EMOJI * sell_signal}')
+    tui.live_data.update_data_points(live_data_points.copy())
 
 def get_sell_profit_text(base_currency, target_currency, target_amount) -> str:
     symbol = base_currency + target_currency
@@ -266,7 +262,6 @@ def get_sell_profit_text(base_currency, target_currency, target_amount) -> str:
         return f'(Profit: {difference} {target_currency})'
     else:
         return f'(Loss: {difference} {target_currency})'
-
 
 def calculate_sell_profit(symbol, target_amount) -> float:
     # Get the latest bought log for <symbol>
@@ -280,21 +275,9 @@ def calculate_sell_profit(symbol, target_amount) -> float:
         target_amount = float(target_amount)
         return target_amount - last_bought_target_quantity
 
-def get_time_stamp():
-    return time.time()
-
-def print_headers():
-    print ('{:<12} {:<12} {:<16} {:<20} {:<24} {:<12} {:<10}'.format('👾 Owned', 'Symbol',
-        '📈 In Favor', 'Current Price', 'Last Operation Price', 'Difference', 'Indicator Signals'))
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description = 'A bot that does cryptocurrency trading based on several indicator signals.')
-    parser.add_argument('-q',
-                        '--quite',
-                        help = 'An argument to enable/disable printing logs to the console.',
-                        action = 'store_true'
-                    )
     parser.add_argument('-t',
                         '--telegram',
                         help = 'The telegram chat_id that will be notified on buy or sell operations.',
@@ -310,9 +293,13 @@ if __name__ == '__main__':
                     )
 
     args = parser.parse_args()
-    print_out = False if args.quite else True
     telegram_chat_id = args.telegram
     discord_channel_id = args.discord
+
+    tui = TUI()
+    tui.nonblocking_draw()
+
+    tui.program_log.add_log("Started the trader bot!")
 
     # Read the binance api key and api secret key
     with open(trader.constants.BINANCE_API_KEYS_FILE, 'r') as credentials_file:
@@ -363,20 +350,16 @@ if __name__ == '__main__':
     # Update config on the file system
     trader.ssb.helper.write_config_file(master_config_files)
 
-    if print_out:
-        print(f'Starting the bot with this config:\n\n{json.dumps(master_config_files, indent=4)}\n')
-
     while True:
-        if print_out:
-            print_headers()
         for current_config in master_config_files:
+            print(current_config)
             if current_config['enabled']:
                 try:
-                    perform_bot_operations(current_config, api_key, secret_key, print_out) 
+                    perform_bot_operations(current_config, api_key, secret_key, tui) 
                 except Exception as ex:
                     symbol = current_config['base_currency'] + current_config['target_currency']
-                    trader.ssb.helper.error_log(f'Error at perform_bot_operations for: {symbol},'
-                        f'Exception message: {ex}', print_out)
-        if print_out:
-            print('-' * 120)
+                    err_log = f'Error at perform_bot_operations for: {symbol}, Exception message: {ex}'
+                    trader.ssb.helper.error_log(err_log, False)
+                    tui.program_log.add_log(err_log)
+
         time.sleep(5)
