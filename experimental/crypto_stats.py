@@ -19,7 +19,7 @@ def get_klines_data(symbol, interval, limit = 1000):
     response = requests.get(api_endpoints)
 
     if response.status_code != 200:
-        raise Exception(f'Failed while fetching klines data')
+        raise Exception(f'Failed while fetching klines data, response: {response}')
     
     return response.json()
 

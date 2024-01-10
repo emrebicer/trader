@@ -12,8 +12,7 @@ def get_account_information(api_key, secret_key) -> dict:
     response = requests.get(f'{trader.constants.BASE_ENDPOINT}/api/v3/account?{total_params}&signature={signature}', headers = headers)
 
     if response.status_code != 200:
-        print(response.json())
-        raise Exception('Failed to post -> get_account_information')
+        raise Exception(f'Failed to post -> get_account_information, response: {response.text}')
     return response.json()
 
 

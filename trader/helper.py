@@ -13,7 +13,6 @@ def fill_empty_fields_with_default_config(current_config, default_config) -> dic
     for key in default_config:
         if key not in current_config:
             current_config[key] = default_config[key]
-            print(f'Updated `{key}` key in {symbol} config')
 
     return current_config
 
@@ -90,8 +89,7 @@ def notify_on_telegram(api_token, chat_id, message):
     
     response_json = response.json()
     if response.status_code != 200:
-        print(response_json)
-        raise Exception(f'Failed to get -> notify_on_telegram, response:{response_json}')
+        raise Exception(f'Failed to get -> notify_on_telegram, response:{response.text}')
 
     return response_json
 
@@ -119,7 +117,6 @@ def notify_on_discord(api_token, channel_id, message):
 
     response_json = response.json()
     if response.status_code != 200:
-        print(response_json)
-        raise Exception(f'Failed to post-> discord_on_telegram, response:{response_json}')
+        raise Exception(f'Failed to post-> notify_on_discord, response:{response.text}')
 
     return response_json

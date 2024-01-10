@@ -7,7 +7,7 @@ def get_current_trade_ratio(symbol) -> float:
     response = requests.get(f'{trader.constants.BASE_ENDPOINT}/api/v3/ticker/24hr?symbol={symbol}')
 
     if response.status_code != 200:
-        raise Exception('Failed to fetch trade ratio')
+        raise Exception(f'Failed to fetch trade ratio, response: {response.text}')
 
     response_dict = response.json()
     if 'lastPrice' not in response_dict:
@@ -27,8 +27,7 @@ def create_limit_order(api_key, secret_key, symbol, side, quantity, price) -> di
     response = requests.post(f'{trader.constants.BASE_ENDPOINT}/api/v3/order?{total_params}&signature={signature}', headers = headers)
 
     if response.status_code != 200:
-        print(response.json())
-        raise Exception('Failed to post -> create_limit_order')
+        raise Exception(f'Failed to post -> create_limit_order, response: {response.text}')
     return response.json()
 
 
@@ -43,6 +42,5 @@ def create_market_order(api_key, secret_key, symbol, side, quantity) -> dict:
     response = requests.post(f'{trader.constants.BASE_ENDPOINT}/api/v3/order?{total_params}&signature={signature}', headers = headers)
 
     if response.status_code != 200:
-        print(response.json())
-        raise Exception('Failed to post -> create_market_order')
+        raise Exception(f'Failed to post -> create_market_order, response: {response.text}')
     return response.json()

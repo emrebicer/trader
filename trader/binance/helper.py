@@ -95,7 +95,7 @@ def get_server_timestamp() -> int:
     response = requests.get(f'{trader.constants.BASE_ENDPOINT}/api/v3/time')
 
     if response.status_code != 200:
-        raise Exception('Failed while fetching server time')
+        raise Exception(f'Failed while fetching server time, response: {response.text}')
 
     return int(response.json()['serverTime'])
 
@@ -120,7 +120,7 @@ def get_klines_data(symbol, interval, limit = 1000):
     response = requests.get(target_url)
 
     if response.status_code != 200:
-        raise Exception('Failed while fetching klines data')
+        raise Exception(f'Failed while fetching klines data, response: {response.text}')
     
     return response.json()
 
