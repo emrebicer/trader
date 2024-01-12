@@ -67,8 +67,8 @@ def validate_config_file(config, expected_config_keys):
                 f'{expected_config_keys[key]}, but it is a {type(current_config[key])}')
 
 def log(filename, message, dump_to_console):
-    date = datetime.datetime.now()
-    log_message = f'{date} - {message}'
+    date = datetime.datetime.now().strftime('%Y.%m.%d - %H:%M:%S')
+    log_message = f'{date} --- {message}'
     with open(filename, 'a') as log_file:
         log_file.write(f'{log_message}\n')
     if dump_to_console:

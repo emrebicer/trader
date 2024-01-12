@@ -1,6 +1,8 @@
 import argparse
 import json
 import time
+import datetime
+import os.path
 
 import trader.binance.account
 import trader.binance.helper
@@ -58,6 +60,12 @@ def is_telegram_enabled():
 def is_discord_enabled():
     return discord_channel_id != '' and discord_api_token != ''
 
+def update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui):
+    symbol = base_currency + target_currency
+    last_updated_time = datetime.datetime.now().strftime('%H:%M:%S')
+    live_data_points[f'{symbol}'] = LiveDataInfo(not buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, f'{buy_signal} Buy - {sell_signal} Sell {BUY_SIGNAL_EMOJI * buy_signal}{SELL_SIGNAL_EMOJI * sell_signal}', f"{last_updated_time}")
+    tui.live_data.update_data_points(live_data_points.copy())
+
 def perform_bot_operations(config, api_key, secret_key, tui):
 
     base_currency = config['base_currency']
@@ -113,6 +121,21 @@ def perform_bot_operations(config, api_key, secret_key, tui):
     elif current_price < ema:
         buy_signal += 1
 
+
+    if buy_on_next_trade:
+        if buy_signal > sell_signal:
+            is_in_favor = True
+        else:
+            is_in_favor = False
+    else:
+        if sell_signal > buy_signal:
+            is_in_favor = True
+        else:
+            is_in_favor = False
+
+
+    difference_in_percent = 100 * (current_price - last_operation_price) / last_operation_price
+
     if buy_on_next_trade:
         current_buy_signal_percent = 100 * buy_signal / total_indicator_count
         if current_buy_signal_percent >= BUY_SIGNAL_PERCENT:
@@ -126,10 +149,14 @@ def perform_bot_operations(config, api_key, secret_key, tui):
                 quantity
             )
             if result['status'] != 'FILLED':
-                err_log = f"Response status was't FILLED, could't create BUY order for {symbol}"
+                err_log = f"Response status was't FILLED, could't create BUY order for {symbol}, result was: {result}"
                 trader.ssb.helper.error_log(err_log, False)
                 tui.program_log.add_log(err_log)
+                update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
                 return
+
+            buy_on_next_trade = False
+            last_operation_price = current_price
 
             config['buy_on_next_trade'] = False
             config['last_operation_price'] = current_price
@@ -181,9 +208,10 @@ def perform_bot_operations(config, api_key, secret_key, tui):
                 )
 
                 if result['status'] != 'FILLED':
-                    err_log = f"Response status was't FILLED, could't create SELL order for {symbol}"
+                    err_log = f"Response status was't FILLED, could't create SELL order for {symbol}, result was: {result}"
                     trader.ssb.helper.error_log(err_log, False)
                     tui.program_log.add_log(err_log)
+                    update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
                     return
 
                 if 'executedQty' in result.keys():
@@ -194,6 +222,9 @@ def perform_bot_operations(config, api_key, secret_key, tui):
                     target_amount = result['cummulativeQuoteQty']
                 else:
                     target_amount = quantity * current_price
+
+                buy_on_next_trade = True
+                last_operation_price = current_price
 
                 config['buy_on_next_trade'] = True
                 config['last_operation_price'] = current_price
@@ -234,23 +265,7 @@ def perform_bot_operations(config, api_key, secret_key, tui):
                             notification_str
                         )
 
-    owned_asset = '🚩 true' if not buy_on_next_trade else '➖ false'
-
-    if buy_on_next_trade:
-        if buy_signal > sell_signal:
-            is_in_favor = True
-        else:
-            is_in_favor = False
-    else:
-        if sell_signal > buy_signal:
-            is_in_favor = True
-        else:
-            is_in_favor = False
-
-    difference_in_percent = 100 * (current_price - last_operation_price) / last_operation_price
-
-    live_data_points[f'{symbol}'] = LiveDataInfo(not buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, f'{buy_signal} Buy - {sell_signal} Sell {BUY_SIGNAL_EMOJI * buy_signal}{SELL_SIGNAL_EMOJI * sell_signal}')
-    tui.live_data.update_data_points(live_data_points.copy())
+    update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
 
 def get_sell_profit_text(base_currency, target_currency, target_amount) -> str:
     symbol = base_currency + target_currency
@@ -298,6 +313,19 @@ if __name__ == '__main__':
 
     tui = TUI()
     tui.nonblocking_draw()
+
+    # Load the previous transaction logs if it exists
+    try:
+        if os.path.exists(trader.ssb.constants.LOG_FILE):
+            with open(trader.ssb.constants.LOG_FILE, 'r') as log_file:
+                lines = log_file.readlines()
+                for line in lines:
+                    chunks = line.split("---")
+                    date = str(chunks[0]).strip()
+                    log = str(chunks[1]).strip()
+                    tui.transaction_log.add_log(log, date)
+    except Exception as ex:
+        tui.program_log.add_log(f"Failed to collect previous transaction log: {ex}")
 
     tui.program_log.add_log("Started the trader bot!")
 
@@ -350,9 +378,11 @@ if __name__ == '__main__':
     # Update config on the file system
     trader.ssb.helper.write_config_file(master_config_files)
 
+    enabled_symbols = [f"{cc['base_currency']}/{cc['target_currency']}" for cc in master_config_files if cc["enabled"]]
+    tui.program_log.add_log(f"Enabled symbols are: {', '.join(enabled_symbols)}")
+
     while True:
         for current_config in master_config_files:
-            print(current_config)
             if current_config['enabled']:
                 try:
                     perform_bot_operations(current_config, api_key, secret_key, tui) 

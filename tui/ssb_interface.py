@@ -48,6 +48,7 @@ class LiveDataInfo:
     last_operation_price: float
     difference: float
     indicator_signals: str
+    last_updated: str
 
 class LiveData:
 
@@ -66,9 +67,10 @@ class LiveData:
         table.add_column("Last Operation Price", style="cyan")
         table.add_column("Difference", style="magenta")
         table.add_column("Indicator Signals", style="cyan")
+        table.add_column("Last Updated", style="magenta")
 
         for symbol, point in self.data_points.items():
-            table.add_row("🚩 true" if point.owned else "➖ false", f"{point.base_currency}/{point.target_currency}", "🔼 true" if point.in_favor else "🔻 false", f"{point.current_price} {point.target_currency}", f"{point.last_operation_price} {point.target_currency}", f"{point.difference:.2f}%", f"{point.indicator_signals}")
+            table.add_row("🚩 true" if point.owned else "➖ false", f"{point.base_currency}/{point.target_currency}", "🔼 true" if point.in_favor else "🔻 false", f"{point.current_price} {point.target_currency}", f"{point.last_operation_price} {point.target_currency}", f"{point.difference:.2f}%", f"{point.indicator_signals}", f"{point.last_updated}")
 
         return table
 
@@ -77,8 +79,7 @@ class TransactionLog:
 
     queue = deque([], maxlen = 30)
 
-    def add_log(self, log: str):
-        date = datetime.datetime.now().strftime('%d-%m-%Y - %H:%M:%S')
+    def add_log(self, log: str, date = datetime.datetime.now().strftime('%Y.%m.%d - %H:%M:%S')):
         rich_text = Text.assemble((f"[{date}]: ", "bold cyan"), (f"{str(log)}", "blue"), "\n")
         self.queue.append(rich_text)
 
@@ -95,7 +96,7 @@ class ProgramLog:
     queue = deque([], maxlen = 30)
 
     def add_log(self, log: str):
-        date = datetime.datetime.now().strftime('%d-%m-%Y - %H:%M:%S')
+        date = datetime.datetime.now().strftime('%Y.%m.%d - %H:%M:%S')
         rich_text = Text.assemble((f"[{date}]: ", "bold cyan"), (f"{str(log)}", "magenta"), "\n")
         self.queue.append(rich_text)
 
