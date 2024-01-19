@@ -79,7 +79,9 @@ class TransactionLog:
 
     queue = deque([], maxlen = 30)
 
-    def add_log(self, log: str, date = datetime.datetime.now().strftime('%Y.%m.%d - %H:%M:%S')):
+    def add_log(self, log: str, date = None):
+        if date == None:
+            date = datetime.datetime.now().strftime('%Y.%m.%d - %H:%M:%S')
         rich_text = Text.assemble((f"[{date}]: ", "bold cyan"), (f"{str(log)}", "blue"), "\n")
         self.queue.append(rich_text)
 
