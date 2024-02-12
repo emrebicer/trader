@@ -1,10 +1,16 @@
 # shell.nix
 { pkgs ? import <nixpkgs> {} }:
 let
-  my-python-packages = ps: with ps; [
+  python-packages = ps: with ps; [
     requests
     rich
-    jedi-language-server
+    python-lsp-server
+    python-lsp-ruff
   ];
-  my-python = pkgs.python3.withPackages my-python-packages;
-in my-python.env
+  pythonEnv = pkgs.python3.withPackages python-packages;
+in 
+pkgs.mkShell{
+  packages = [
+    pythonEnv
+  ];
+}
