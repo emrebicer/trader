@@ -25,7 +25,8 @@ After spending some time within the crypto market, I have realized that the a lo
         "trade_amount_buy": 50.0,
         "trade_wealth_percent_sell": 100.0,
         "last_operation_price": -1.0,
-        "prevent_loss": true
+        "prevent_loss": true,
+        "hook_percent": 1.0
     },
     {
         "enabled": true,
@@ -35,7 +36,8 @@ After spending some time within the crypto market, I have realized that the a lo
         "trade_amount_buy": 30.0,
         "trade_wealth_percent_sell": 100.0,
         "last_operation_price": -1.0,
-        "prevent_loss": true
+        "prevent_loss": true,
+        "hook_percent": 1.0
     }
 ]
 ```
@@ -50,6 +52,7 @@ default_config = {
     'trade_wealth_percent_sell': 100.0, # The percent of the account balance to be traded while selling `base_currency`
     'last_operation_price': -1.0, # Previous trade price, if there is no trade (-1), set to current price
     'prevent_loss': True, # If True never sell cheaper
+    'hook_percent': 1.0 # Hooking is the idea of holding the tx until the given percent of change happens (greedily try to maximize profit)
 }
 ```
 - Lastly, you can use docker to run the bot or you can direcly run with python3. Dependencies are **requests** and **rich** for the TUI. So make sure you have those packages installed locally and then you can directly run **signal_spot_bot.py**.
