@@ -5,11 +5,6 @@ import requests
 import trader.constants
 
 def fill_empty_fields_with_default_config(current_config, default_config) -> dict:
-    if current_config['base_currency'] and current_config['target_currency']:
-        symbol = current_config['base_currency'] + current_config['target_currency']
-    else:
-        symbol = default_config['base_currency'] + default_config['target_currency']
-    
     for key in default_config:
         if key not in current_config:
             current_config[key] = default_config[key]
@@ -23,7 +18,7 @@ def load_config_file(file_name, default_config) -> list:
     if os.path.isfile(os.path.join(os.getcwd(), file_name)):
         with open(file_name, 'r') as config_file:
             saved_config = json.loads(config_file.read())
-            if type(saved_config) == dict:
+            if isinstance(saved_config, dict):
                 temp = saved_config
                 saved_config = []
                 saved_config.append(temp)
@@ -43,8 +38,8 @@ def write_config_file(file_name, config):
 
 def validate_config_file(config, expected_config_keys):
     
-    if type(config) != list:
-        raise Exception(f'Configuration error: the config file must be a list!')
+    if isinstance(config, dict):
+        raise Exception('Configuration error: the config file must be a list!')
     
     # Make sure each config has a unique symbol
     prev_symbols = []
