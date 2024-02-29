@@ -43,7 +43,6 @@ class LiveDataInfo:
     owned: bool
     base_currency: str
     target_currency: str
-    in_favor: bool
     current_price: float
     last_operation_price: float
     difference: float
@@ -60,9 +59,8 @@ class LiveData:
     def __rich__(self) -> Table:
         table = Table(expand=True)
 
-        table.add_column("👾 Owned", style="cyan")
-        table.add_column("Symbol", style="magenta")
-        table.add_column("📈 In Favor", style="cyan")
+        table.add_column("👾 Owned", style="magenta")
+        table.add_column("Symbol", style="cyan")
         table.add_column("Current Price", style="magenta")
         table.add_column("Last Operation Price", style="cyan")
         table.add_column("Difference", style="magenta")
@@ -70,7 +68,7 @@ class LiveData:
         table.add_column("Last Updated", style="magenta")
 
         for symbol, point in self.data_points.items():
-            table.add_row("🚩 true" if point.owned else "➖ false", f"{point.base_currency}/{point.target_currency}", "🔼 true" if point.in_favor else "🔻 false", f"{point.current_price} {point.target_currency}", f"{point.last_operation_price} {point.target_currency}", f"{point.difference:.2f}%", f"{point.indicator_signals}", f"{point.last_updated}")
+            table.add_row("🚩 true" if point.owned else "➖ false", f"{point.base_currency}/{point.target_currency}", f"{point.current_price} {point.target_currency}", f"{point.last_operation_price} {point.target_currency}", f"{point.difference:.2f}%", f"{point.indicator_signals}", f"{point.last_updated}")
 
         return table
 

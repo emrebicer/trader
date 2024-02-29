@@ -78,13 +78,13 @@ def notify_all(log_str):
             log_str
         )
 
-def update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui):
+def update_live_data_points(buy_on_next_trade, base_currency, target_currency, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui):
     symbol = base_currency + target_currency
     last_updated_time = datetime.datetime.now().strftime('%H:%M:%S')
-    live_data_points[f'{symbol}'] = LiveDataInfo(not buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, f'{buy_signal} Buy - {sell_signal} Sell {BUY_SIGNAL_EMOJI * buy_signal}{SELL_SIGNAL_EMOJI * sell_signal}', f"{last_updated_time}")
+    live_data_points[f'{symbol}'] = LiveDataInfo(not buy_on_next_trade, base_currency, target_currency, current_price, last_operation_price, difference_in_percent, f'{buy_signal} Buy - {sell_signal} Sell {BUY_SIGNAL_EMOJI * buy_signal}{SELL_SIGNAL_EMOJI * sell_signal}', f"{last_updated_time}")
     tui.live_data.update_data_points(live_data_points.copy())
 
-def create_buy_order(is_in_favor, current_price, difference_in_percent, buy_signal, sell_signal, tui, config):
+def create_buy_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config):
 
     base_currency = config['base_currency']
     target_currency = config['target_currency']
@@ -105,7 +105,7 @@ def create_buy_order(is_in_favor, current_price, difference_in_percent, buy_sign
         err_log = f"Response status was't FILLED, could't create BUY order for {symbol}, result was: {result}"
         trader.ssb.helper.error_log(err_log, False)
         tui.program_log.add_log(err_log)
-        update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
+        update_live_data_points(buy_on_next_trade, base_currency, target_currency, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
         return False
 
     buy_on_next_trade = False
@@ -129,7 +129,7 @@ def create_buy_order(is_in_favor, current_price, difference_in_percent, buy_sign
     notify_all(log_str)
     return True
 
-def create_sell_order(is_in_favor, current_price, difference_in_percent, buy_signal, sell_signal, tui, config):
+def create_sell_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config):
 
     base_currency = config['base_currency']
     target_currency = config['target_currency']
@@ -156,7 +156,7 @@ def create_sell_order(is_in_favor, current_price, difference_in_percent, buy_sig
         err_log = f"Response status was't FILLED, could't create SELL order for {symbol}, result was: {result}"
         trader.ssb.helper.error_log(err_log, False)
         tui.program_log.add_log(err_log)
-        update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
+        update_live_data_points(buy_on_next_trade, base_currency, target_currency, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
         return False
 
     if 'executedQty' in result.keys():
@@ -241,19 +241,6 @@ def perform_bot_operations(config, api_key, secret_key, tui):
     elif current_price < ema:
         buy_signal += 1
 
-
-    if buy_on_next_trade:
-        if buy_signal > sell_signal:
-            is_in_favor = True
-        else:
-            is_in_favor = False
-    else:
-        if sell_signal > buy_signal:
-            is_in_favor = True
-        else:
-            is_in_favor = False
-
-
     difference_in_percent = 100 * (current_price - last_operation_price) / last_operation_price
 
     if local_data[symbol]['hook']:
@@ -262,13 +249,13 @@ def perform_bot_operations(config, api_key, secret_key, tui):
                 local_data[symbol]['hook_price'] = current_price
             elif current_price - local_data[symbol]['hook_price'] > (last_operation_price * hook_percent / 100):
                 # Create buy order
-                create_buy_order(is_in_favor, current_price, difference_in_percent, buy_signal, sell_signal, tui, config)
+                create_buy_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config)
         else:
             if current_price > local_data[symbol]['hook_price']:
                 local_data[symbol]['hook_price'] = current_price
             elif local_data[symbol]['hook_price'] - current_price > (last_operation_price * hook_percent / 100):
                 # Create sell order
-                create_sell_order(is_in_favor, current_price, difference_in_percent, buy_signal, sell_signal, tui, config)
+                create_sell_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config)
     elif buy_on_next_trade:
         current_buy_signal_percent = 100 * buy_signal / total_indicator_count
         if current_buy_signal_percent >= BUY_SIGNAL_PERCENT:
@@ -287,7 +274,7 @@ def perform_bot_operations(config, api_key, secret_key, tui):
                 local_data[symbol]['hook_price'] = current_price
                 tui.program_log.add_log(f'Hook for {symbol} at {current_price}')
 
-    update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
+    update_live_data_points(buy_on_next_trade, base_currency, target_currency, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
 
 if __name__ == '__main__':
 
