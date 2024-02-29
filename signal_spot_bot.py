@@ -60,6 +60,21 @@ def is_telegram_enabled():
 def is_discord_enabled():
     return discord_channel_id != '' and discord_api_token != ''
 
+def notify_all(log_str):
+    if is_telegram_enabled():
+        trader.helper.notify_on_telegram(
+            telegram_api_token,
+            telegram_chat_id,
+            log_str
+        )
+
+    if is_discord_enabled():
+        trader.helper.notify_on_discord(
+            discord_api_token,
+            discord_channel_id,
+            log_str
+        )
+
 def update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui):
     symbol = base_currency + target_currency
     last_updated_time = datetime.datetime.now().strftime('%H:%M:%S')
@@ -172,19 +187,7 @@ def perform_bot_operations(config, api_key, secret_key, tui):
             trader.ssb.helper.log(log_str, False)
             tui.transaction_log.add_log(log_str)
 
-            if is_telegram_enabled():
-                trader.helper.notify_on_telegram(
-                    telegram_api_token,
-                    telegram_chat_id,
-                    log_str
-                )
-
-            if is_discord_enabled():
-                trader.helper.notify_on_discord(
-                    discord_api_token,
-                    discord_channel_id,
-                    log_str
-                )
+            notify_all(log_str)
     else:
         current_sell_signal_percent = 100 * sell_signal / total_indicator_count
         if current_sell_signal_percent >= SELL_SIGNAL_PERCENT:
@@ -237,58 +240,9 @@ def perform_bot_operations(config, api_key, secret_key, tui):
                 tui.transaction_log.add_log(log_str)
 
                 if is_telegram_enabled() or is_discord_enabled():
-                    try:
-                        profit_text = get_sell_profit_text(
-                            base_currency,
-                            target_currency,
-                            target_amount
-                        )
-                    except Exception as ex:
-                        err_log = f'Error at get_sell_profit_text, Exception message: {ex}'
-                        trader.ssb.helper.error_log(err_log, False)
-                        tui.program_log.add_log(err_log)
-                        profit_text = ''
-
-                    notification_str = f'{log_str} {profit_text}'
-
-                    if is_telegram_enabled():
-                        trader.helper.notify_on_telegram(
-                            telegram_api_token,
-                            telegram_chat_id,
-                            notification_str
-                         )
-
-                    if is_discord_enabled():
-                        trader.helper.notify_on_discord(
-                            discord_api_token,
-                            discord_channel_id,
-                            notification_str
-                        )
+                    notify_all(log_str)
 
     update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
-
-def get_sell_profit_text(base_currency, target_currency, target_amount) -> str:
-    symbol = base_currency + target_currency
-    difference = calculate_sell_profit(symbol, target_amount)
-    if difference == 0:
-        return ""
-
-    if difference > 0:
-        return f'(Profit: {difference} {target_currency})'
-    else:
-        return f'(Loss: {difference} {target_currency})'
-
-def calculate_sell_profit(symbol, target_amount) -> float:
-    # Get the latest bought log for <symbol>
-    with open(trader.ssb.constants.LOG_FILE, 'r') as log_file:
-        logs = [log for log in log_file.readlines() if symbol in log and 'Bought' in log]
-        if len(logs) == 0:
-            return 0.0
-
-        last_bought_log = logs[-1]
-        last_bought_target_quantity = float(last_bought_log.split(' ')[4])
-        target_amount = float(target_amount)
-        return target_amount - last_bought_target_quantity
 
 if __name__ == '__main__':
 
@@ -314,7 +268,7 @@ if __name__ == '__main__':
     tui = TUI()
     tui.nonblocking_draw()
 
-    # Load the previous transaction logs if it exists
+    # Load the previous transaction logs to TUI if it exists
     try:
         if os.path.exists(trader.ssb.constants.LOG_FILE):
             with open(trader.ssb.constants.LOG_FILE, 'r') as log_file:
