@@ -15,6 +15,9 @@ import trader.ssb.helper
 
 from tui.ssb_interface import TUI, LiveDataInfo
 
+# Local data to keep track of hook
+local_data = {}
+
 # Keep track of the individual config files
 master_config_files = []
 
@@ -31,7 +34,7 @@ discord_api_token = ''
 MIN_PROFIT_PERCENT = 6
 
 BUY_SIGNAL_PERCENT = 100
-SELL_SIGNAL_PERCENT = 80 
+SELL_SIGNAL_PERCENT = 100
 
 BUY_SIGNAL_EMOJI = '💸'
 SELL_SIGNAL_EMOJI = '🔔'
@@ -81,15 +84,117 @@ def update_live_data_points(buy_on_next_trade, base_currency, target_currency, i
     live_data_points[f'{symbol}'] = LiveDataInfo(not buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, f'{buy_signal} Buy - {sell_signal} Sell {BUY_SIGNAL_EMOJI * buy_signal}{SELL_SIGNAL_EMOJI * sell_signal}', f"{last_updated_time}")
     tui.live_data.update_data_points(live_data_points.copy())
 
-def perform_bot_operations(config, api_key, secret_key, tui):
+def create_buy_order(is_in_favor, current_price, difference_in_percent, buy_signal, sell_signal, tui, config):
 
     base_currency = config['base_currency']
     target_currency = config['target_currency']
     buy_on_next_trade = config['buy_on_next_trade']
     trade_amount_buy = config['trade_amount_buy']
+    last_operation_price = config['last_operation_price']
+
+    target_amount = trade_amount_buy
+    quantity = target_amount / current_price
+    result = trader.binance.trade.create_market_order(
+        api_key,
+        secret_key,
+        symbol,
+        'BUY',
+        quantity
+    )
+    if result['status'] != 'FILLED':
+        err_log = f"Response status was't FILLED, could't create BUY order for {symbol}, result was: {result}"
+        trader.ssb.helper.error_log(err_log, False)
+        tui.program_log.add_log(err_log)
+        update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
+        return False
+
+    buy_on_next_trade = False
+    last_operation_price = current_price
+
+    config['buy_on_next_trade'] = False
+    config['last_operation_price'] = current_price
+    local_data[symbol]['hook'] = False
+    update_and_save_config_file(config)
+
+    if 'executedQty' in result.keys():
+        quantity = result['executedQty']
+    if 'cummulativeQuoteQty' in result.keys():
+        target_amount = result['cummulativeQuoteQty']
+
+    log_str = f'Bought {quantity} {base_currency} for {target_amount} '\
+        f'{target_currency} ( {symbol} -> {current_price} )'
+    trader.ssb.helper.log(log_str, False)
+    tui.transaction_log.add_log(log_str)
+
+    notify_all(log_str)
+    return True
+
+def create_sell_order(is_in_favor, current_price, difference_in_percent, buy_signal, sell_signal, tui, config):
+
+    base_currency = config['base_currency']
+    target_currency = config['target_currency']
+    buy_on_next_trade = config['buy_on_next_trade']
     trade_wealth_percent_sell = config['trade_wealth_percent_sell']
     last_operation_price = config['last_operation_price']
+
+    base_amount = trader.binance.account.get_free_balance_amount(
+        api_key,
+        secret_key,
+        base_currency
+    )
+    # Calculate total amount that we can trade
+    base_amount = base_amount * trade_wealth_percent_sell / 100
+    result = trader.binance.trade.create_market_order(
+        api_key,
+        secret_key,
+        symbol,
+        'SELL',
+        base_amount
+    )
+
+    if result['status'] != 'FILLED':
+        err_log = f"Response status was't FILLED, could't create SELL order for {symbol}, result was: {result}"
+        trader.ssb.helper.error_log(err_log, False)
+        tui.program_log.add_log(err_log)
+        update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
+        return False
+
+    if 'executedQty' in result.keys():
+        quantity = result['executedQty']
+    else:
+        quantity = base_amount
+    if 'cummulativeQuoteQty' in result.keys():
+        target_amount = result['cummulativeQuoteQty']
+    else:
+        target_amount = quantity * current_price
+
+    buy_on_next_trade = True
+    last_operation_price = current_price
+
+    config['buy_on_next_trade'] = True
+    config['last_operation_price'] = current_price
+    local_data[symbol]['hook'] = False
+    update_and_save_config_file(config)
+    log_str = f'Sold {quantity} {base_currency} '\
+        f'for {target_amount} {target_currency} '\
+        f'( {symbol} -> {current_price} )'
+
+    trader.ssb.helper.log(log_str, False)
+    tui.transaction_log.add_log(log_str)
+
+    if is_telegram_enabled() or is_discord_enabled():
+        notify_all(log_str)
+
+    return True
+
+def perform_bot_operations(config, api_key, secret_key, tui):
+
+    base_currency = config['base_currency']
+    target_currency = config['target_currency']
+    buy_on_next_trade = config['buy_on_next_trade']
+    last_operation_price = config['last_operation_price']
     prevent_loss = config['prevent_loss']
+    hook_percent = config['hook_percent']
 
     symbol = base_currency + target_currency
     current_price = trader.binance.trade.get_current_trade_ratio(symbol)
@@ -151,96 +256,36 @@ def perform_bot_operations(config, api_key, secret_key, tui):
 
     difference_in_percent = 100 * (current_price - last_operation_price) / last_operation_price
 
-    if buy_on_next_trade:
+    if local_data[symbol]['hook']:
+        if buy_on_next_trade:
+            if current_price < local_data[symbol]['hook_price']:
+                local_data[symbol]['hook_price'] = current_price
+            elif current_price - local_data[symbol]['hook_price'] > (last_operation_price * hook_percent / 100):
+                # Create buy order
+                create_buy_order(is_in_favor, current_price, difference_in_percent, buy_signal, sell_signal, tui, config)
+        else:
+            if current_price > local_data[symbol]['hook_price']:
+                local_data[symbol]['hook_price'] = current_price
+            elif local_data[symbol]['hook_price'] - current_price > (last_operation_price * hook_percent / 100):
+                # Create sell order
+                create_sell_order(is_in_favor, current_price, difference_in_percent, buy_signal, sell_signal, tui, config)
+    elif buy_on_next_trade:
         current_buy_signal_percent = 100 * buy_signal / total_indicator_count
         if current_buy_signal_percent >= BUY_SIGNAL_PERCENT:
-            target_amount = trade_amount_buy
-            quantity = target_amount / current_price
-            result = trader.binance.trade.create_market_order(
-                api_key,
-                secret_key,
-                symbol,
-                'BUY',
-                quantity
-            )
-            if result['status'] != 'FILLED':
-                err_log = f"Response status was't FILLED, could't create BUY order for {symbol}, result was: {result}"
-                trader.ssb.helper.error_log(err_log, False)
-                tui.program_log.add_log(err_log)
-                update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
-                return
-
-            buy_on_next_trade = False
-            last_operation_price = current_price
-
-            config['buy_on_next_trade'] = False
-            config['last_operation_price'] = current_price
-            update_and_save_config_file(config)
-
-            if 'executedQty' in result.keys():
-                quantity = result['executedQty']
-            if 'cummulativeQuoteQty' in result.keys():
-                target_amount = result['cummulativeQuoteQty']
-
-            log_str = f'Bought {quantity} {base_currency} for {target_amount} '\
-                f'{target_currency} ( {symbol} -> {current_price} )'
-            trader.ssb.helper.log(log_str, False)
-            tui.transaction_log.add_log(log_str)
-
-            notify_all(log_str)
+            # Initialize hook
+            local_data[symbol]['hook'] = True
+            local_data[symbol]['hook_price'] = current_price
+            tui.program_log.add_log(f'Hook for {symbol} at {current_price}')
     else:
         current_sell_signal_percent = 100 * sell_signal / total_indicator_count
         if current_sell_signal_percent >= SELL_SIGNAL_PERCENT:
             # If prevent_loss is enabled,
             # make sure the profit is at least <MIN_PROFIT_PERCENT>
             if (not prevent_loss) or (prevent_loss and (current_price >= last_operation_price + (last_operation_price * MIN_PROFIT_PERCENT / 100))):
-                # Create sell order
-                base_amount = trader.binance.account.get_free_balance_amount(
-                    api_key,
-                    secret_key,
-                    base_currency
-                )
-                # Calculate total amount that we can trade
-                base_amount = base_amount * trade_wealth_percent_sell / 100
-                result = trader.binance.trade.create_market_order(
-                    api_key,
-                    secret_key,
-                    symbol,
-                    'SELL',
-                    base_amount
-                )
-
-                if result['status'] != 'FILLED':
-                    err_log = f"Response status was't FILLED, could't create SELL order for {symbol}, result was: {result}"
-                    trader.ssb.helper.error_log(err_log, False)
-                    tui.program_log.add_log(err_log)
-                    update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
-                    return
-
-                if 'executedQty' in result.keys():
-                    quantity = result['executedQty']
-                else:
-                    quantity = base_amount
-                if 'cummulativeQuoteQty' in result.keys():
-                    target_amount = result['cummulativeQuoteQty']
-                else:
-                    target_amount = quantity * current_price
-
-                buy_on_next_trade = True
-                last_operation_price = current_price
-
-                config['buy_on_next_trade'] = True
-                config['last_operation_price'] = current_price
-                update_and_save_config_file(config)
-                log_str = f'Sold {quantity} {base_currency} '\
-                    f'for {target_amount} {target_currency} '\
-                    f'( {symbol} -> {current_price} )'
-
-                trader.ssb.helper.log(log_str, False)
-                tui.transaction_log.add_log(log_str)
-
-                if is_telegram_enabled() or is_discord_enabled():
-                    notify_all(log_str)
+                # Initialize hook
+                local_data[symbol]['hook'] = True
+                local_data[symbol]['hook_price'] = current_price
+                tui.program_log.add_log(f'Hook for {symbol} at {current_price}')
 
     update_live_data_points(buy_on_next_trade, base_currency, target_currency, is_in_favor, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
 
@@ -311,6 +356,7 @@ if __name__ == '__main__':
         'trade_wealth_percent_sell': 100.0, # The percent of the account balance to be traded while selling `base_currency`
         'last_operation_price': -1.0, # Previous trade price, if there is no trade (-1), set to current price
         'prevent_loss': True, # If True never sell cheaper
+        'hook_percent': 1.0 # Hooking is the idea of holding the tx until the given percent of change happens (greedily)
     }
 
     # Fetch config files from fs
@@ -325,6 +371,9 @@ if __name__ == '__main__':
 
         if current_config['last_operation_price'] == -1:
             current_config['last_operation_price'] = trader.binance.trade.get_current_trade_ratio(symbol)
+
+        # Also construct the local_data for hooking
+        local_data[symbol] = {'hook': False, 'hook_price': -1.0}
 
     # Validate the config file
     trader.ssb.helper.validate_config_file(master_config_files)

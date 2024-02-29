@@ -10,4 +10,5 @@ EXPECTED_CONFIG_KEYS = {
     'trade_wealth_percent_sell': float,
     'last_operation_price': float,
     'prevent_loss': bool,
+    'hook_percent': float,
 }
