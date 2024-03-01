@@ -262,7 +262,9 @@ def perform_bot_operations(config, api_key, secret_key, tui):
             # Initialize hook
             local_data[symbol]['hook'] = True
             local_data[symbol]['hook_price'] = current_price
-            tui.program_log.add_log(f'Hook for {symbol} at {current_price}')
+            log_str = f'Hook for {symbol} at {current_price} (will BUY)'
+            tui.program_log.add_log(log_str)
+            notify_all(log_str)
     else:
         current_sell_signal_percent = 100 * sell_signal / total_indicator_count
         if current_sell_signal_percent >= SELL_SIGNAL_PERCENT:
@@ -272,7 +274,9 @@ def perform_bot_operations(config, api_key, secret_key, tui):
                 # Initialize hook
                 local_data[symbol]['hook'] = True
                 local_data[symbol]['hook_price'] = current_price
-                tui.program_log.add_log(f'Hook for {symbol} at {current_price}')
+                log_str = f'Hook for {symbol} at {current_price} (will SELL)'
+                tui.program_log.add_log(log_str)
+                notify_all(log_str)
 
     update_live_data_points(buy_on_next_trade, base_currency, target_currency, current_price, last_operation_price, difference_in_percent, buy_signal, sell_signal, tui)
 
