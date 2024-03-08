@@ -84,13 +84,14 @@ def update_live_data_points(buy_on_next_trade, base_currency, target_currency, c
     live_data_points[f'{symbol}'] = LiveDataInfo(not buy_on_next_trade, base_currency, target_currency, current_price, last_operation_price, difference_in_percent, f'{buy_signal} Buy - {sell_signal} Sell {BUY_SIGNAL_EMOJI * buy_signal}{SELL_SIGNAL_EMOJI * sell_signal}', f"{last_updated_time}")
     tui.live_data.update_data_points(live_data_points.copy())
 
-def create_buy_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config):
+def create_buy_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config, api_key, secret_key):
 
     base_currency = config['base_currency']
     target_currency = config['target_currency']
     buy_on_next_trade = config['buy_on_next_trade']
     trade_amount_buy = config['trade_amount_buy']
     last_operation_price = config['last_operation_price']
+    symbol = base_currency + target_currency
 
     target_amount = trade_amount_buy
     quantity = target_amount / current_price
@@ -129,13 +130,14 @@ def create_buy_order(current_price, difference_in_percent, buy_signal, sell_sign
     notify_all(log_str)
     return True
 
-def create_sell_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config):
+def create_sell_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config, api_key, secret_key):
 
     base_currency = config['base_currency']
     target_currency = config['target_currency']
     buy_on_next_trade = config['buy_on_next_trade']
     trade_wealth_percent_sell = config['trade_wealth_percent_sell']
     last_operation_price = config['last_operation_price']
+    symbol = base_currency + target_currency
 
     base_amount = trader.binance.account.get_free_balance_amount(
         api_key,
@@ -249,13 +251,13 @@ def perform_bot_operations(config, api_key, secret_key, tui):
                 local_data[symbol]['hook_price'] = current_price
             elif current_price - local_data[symbol]['hook_price'] > (last_operation_price * hook_percent / 100):
                 # Create buy order
-                create_buy_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config)
+                create_buy_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config, api_key)
         else:
             if current_price > local_data[symbol]['hook_price']:
                 local_data[symbol]['hook_price'] = current_price
             elif local_data[symbol]['hook_price'] - current_price > (last_operation_price * hook_percent / 100):
                 # Create sell order
-                create_sell_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config)
+                create_sell_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config, api_key, secret_key)
     elif buy_on_next_trade:
         current_buy_signal_percent = 100 * buy_signal / total_indicator_count
         if current_buy_signal_percent >= BUY_SIGNAL_PERCENT:
