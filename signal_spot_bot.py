@@ -251,7 +251,7 @@ def perform_bot_operations(config, api_key, secret_key, tui):
                 local_data[symbol]['hook_price'] = current_price
             elif current_price - local_data[symbol]['hook_price'] > (last_operation_price * hook_percent / 100):
                 # Create buy order
-                create_buy_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config, api_key)
+                create_buy_order(current_price, difference_in_percent, buy_signal, sell_signal, tui, config, api_key, secret_key)
         else:
             if current_price > local_data[symbol]['hook_price']:
                 local_data[symbol]['hook_price'] = current_price
